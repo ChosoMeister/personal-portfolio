@@ -1,13 +1,17 @@
 services:
   portfolio-tracker:
-    build: .
+    build:
+      context: .
+      args:
+        - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
+        - GEMINI_API_KEY=${GEMINI_API_KEY}
+        - API_KEY=${API_KEY}
     ports:
       - "8080:8080"
     environment:
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=orchidpharmed
       - PORT=8080
-      - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
     volumes:
       - ./data:/app/data
     restart: always
