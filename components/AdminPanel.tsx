@@ -45,7 +45,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           </div>
           <div>
             <h1 className="text-white font-black text-lg">پنل مدیریت سیستم</h1>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Orchid Pharmed Security</p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Portfolio Panel Security</p>
           </div>
         </div>
         <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-all">

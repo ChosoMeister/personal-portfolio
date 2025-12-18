@@ -29,7 +29,7 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'orchidpharmed';
+const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'password';
 
 const getUsers = () => {
     try {

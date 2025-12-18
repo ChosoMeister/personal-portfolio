@@ -41,7 +41,7 @@ Run the container (creates a `/app/data` volume for user/price data):
 ```bash
 docker run -p 8080:8080 \
   -e ADMIN_USERNAME=admin \
-  -e ADMIN_PASSWORD=orchidpharmed \
+  -e ADMIN_PASSWORD=password \
   -e PORT=8080 \
   -e VITE_GEMINI_API_KEY=your_key \
   -v $(pwd)/data:/app/data \

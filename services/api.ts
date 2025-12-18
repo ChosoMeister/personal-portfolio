@@ -8,7 +8,7 @@ const TIMEOUT_MS = 3000;
 const LOCAL_USERS_KEY = 'gemini_fallback_users';
 const LOCAL_PRICES_KEY = 'gemini_fallback_prices';
 const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'orchidpharmed';
+const ADMIN_PASSWORD = 'password';
 
 const getLocalUsers = () => {
   try {

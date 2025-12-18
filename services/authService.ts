@@ -1,7 +1,7 @@
 
 const AUTH_KEY = 'gemini_portfolio_auth';
 const PASS_KEY = 'gemini_portfolio_password';
-const INITIAL_PASS = 'orchidpharmed';
+const INITIAL_PASS = 'password';
 
 // اطمینان از اینکه رمز عبور اولیه در حافظه ست شده است
 const getStoredPassword = (): string => {
