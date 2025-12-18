@@ -11,7 +11,7 @@ import { SettingsDrawer, ThemeOption } from './components/SettingsDrawer';
 import { Transaction, PriceData, PortfolioSummary, ASSET_DETAILS, AssetSummary } from './types';
 import { API } from './services/api';
 import * as PriceService from './services/priceService';
-import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle, Sun, Moon } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle } from 'lucide-react';
 import { formatToman, formatNumber, formatPercent } from './utils/formatting';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -167,23 +167,13 @@ export default function App() {
   if (!user) return <LoginPage onLoginSuccess={setUser} />;
 
   const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(searchQuery) || a.symbol.includes(searchQuery.toUpperCase()));
-  const isDark = resolvedTheme === 'dark';
   const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
   const mutedText = 'text-[color:var(--text-muted)]';
   const pillTone = 'bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]';
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'];
-  const themeLabel = theme === 'system' ? 'هماهنگ با سیستم' : isDark ? 'تم تیره' : 'تم روشن';
 
   return (
     <Layout theme={resolvedTheme}>
-      <button
-        onClick={() => setIsSettingsDrawerOpen(true)}
-        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 rounded-full border border-[color:var(--border-color)] bg-[var(--card-bg)] text-[color:var(--text-primary)] shadow-md active:scale-95 transition-all"
-        aria-label="تنظیمات و تم"
-      >
-        {isDark ? <Sun size={16} /> : <Moon size={16} />}
-        <span className="text-[11px] font-bold">{themeLabel}</span>
-      </button>
       {tab === 'overview' && (
         <div className="p-4 space-y-4 animate-in fade-in duration-500 pb-20">
           <div className="flex justify-between items-center mb-2 px-1">
