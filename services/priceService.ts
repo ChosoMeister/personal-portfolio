@@ -3,9 +3,26 @@ import { GoogleGenAI } from "@google/genai";
 import { PriceData } from '../types';
 import { API } from './api';
 
-// ایمن‌سازی کلید API
+// ایمن‌سازی کلید API - از متغیرهای محیطی با پیشوند VITE برای کلاینت و گزینه‌های سرور پشتیبانی می‌کند
+const resolveApiKey = (): string => {
+  // Vite در زمان بیلد فقط متغیرهای با پیشوند VITE_ را به فرانت‌اند اکسپوز می‌کند
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || import.meta.env.API_KEY || '';
+  }
+
+  // در محیط‌های Node (اسکریپت‌ها یا تست‌ها)
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+  }
+
+  return '';
+};
+
 const getAIClient = () => {
-  const apiKey = typeof process !== 'undefined' && process.env.API_KEY ? process.env.API_KEY : '';
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
+    throw new Error('Gemini API key is not configured. Set VITE_GEMINI_API_KEY in your environment.');
+  }
   return new GoogleGenAI({ apiKey });
 };
 
