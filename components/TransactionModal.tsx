@@ -12,18 +12,19 @@ interface TransactionModalProps {
   initialData?: Transaction | null;
 }
 
-export const TransactionModal: React.FC<TransactionModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSave, 
+export const TransactionModal: React.FC<TransactionModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
   onDelete,
-  initialData 
+  initialData
 }) => {
   const [assetSymbol, setAssetSymbol] = useState<AssetSymbol>('USD');
   const [quantity, setQuantity] = useState('');
   const [price, setPrice] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [currency, setCurrency] = useState<Currency>('TOMAN');
+  const mutedText = 'text-[color:var(--text-muted)]';
 
   useEffect(() => {
     if (initialData) {
@@ -68,12 +69,12 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <h3 className="font-black text-gray-900">
+      <div className="bg-[var(--card-bg)] text-[color:var(--text-primary)] w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300 border border-[color:var(--border-color)]">
+        <div className="px-6 py-5 border-b border-[color:var(--border-color)] flex justify-between items-center bg-[color:var(--muted-surface)]">
+          <h3 className="font-black text-[color:var(--text-primary)]">
             {initialData ? 'ویرایش تراکنش' : 'افزودن تراکنش خرید'}
           </h3>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-200 text-gray-400 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-[color:var(--pill-bg)] text-[color:var(--text-muted)] transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -81,8 +82,8 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
         <div className="p-6 space-y-5">
           {/* Asset Selection */}
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">انتخاب دارایی</label>
-            <select 
+            <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>انتخاب دارایی</label>
+            <select
               value={assetSymbol}
               onChange={(e) => {
                 const newSymbol = e.target.value as AssetSymbol;
@@ -90,7 +91,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
                 if (ASSET_DETAILS[newSymbol].type === 'CRYPTO') setCurrency('USD');
                 else setCurrency('TOMAN');
               }}
-              className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
+              className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none text-[color:var(--text-primary)]"
             >
               {assetOptions.map(opt => (
                 <option key={opt.symbol} value={opt.symbol}>
@@ -102,23 +103,23 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">مقدار</label>
-              <input 
-                type="number" 
+              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>مقدار</label>
+              <input
+                type="number"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-left"
+                className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-left text-[color:var(--text-primary)]"
                 dir="ltr"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">تاریخ</label>
-              <input 
-                type="date" 
+              <label className={`text-[10px] font-black uppercase tracking-widest px-1 ${mutedText}`}>تاریخ</label>
+              <input
+                type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-center"
+                className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all text-center text-[color:var(--text-primary)]"
               />
             </div>
           </div>
@@ -126,31 +127,31 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
           {/* Price */}
           <div className="space-y-1.5">
             <div className="flex justify-between items-center px-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">قیمت واحد</label>
+              <label className={`text-[10px] font-black uppercase tracking-widest ${mutedText}`}>قیمت واحد</label>
               {isCrypto && (
                  <div className="flex gap-2 text-[10px] font-black">
-                    <button 
+                    <button
                       onClick={() => setCurrency('USD')}
-                      className={`${currency === 'USD' ? 'text-blue-600' : 'text-gray-300'}`}
+                      className={`${currency === 'USD' ? 'text-blue-600' : mutedText}`}
                     >USD</button>
-                    <span className="text-gray-200">|</span>
-                    <button 
+                    <span className={`${mutedText}`}>|</span>
+                    <button
                       onClick={() => setCurrency('TOMAN')}
-                      className={`${currency === 'TOMAN' ? 'text-blue-600' : 'text-gray-300'}`}
+                      className={`${currency === 'TOMAN' ? 'text-blue-600' : mutedText}`}
                     >TOMAN</button>
                  </div>
               )}
             </div>
             <div className="relative">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={price}
                 onChange={(e) => setPrice(formatCurrencyInput(e.target.value))}
                 placeholder={currency === 'USD' ? 'Price in USD' : 'قیمت به تومان'}
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all text-left pl-12"
+                className="w-full bg-[color:var(--muted-surface)] border border-[color:var(--border-color)] rounded-2xl p-4 text-sm font-black focus:ring-2 focus:ring-blue-500 outline-none transition-all text-left pl-12 text-[color:var(--text-primary)]"
                 dir="ltr"
               />
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-300 pointer-events-none">
+              <div className={`absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black ${mutedText} pointer-events-none`}>
                 {currency === 'USD' ? '$' : 'T'}
               </div>
             </div>

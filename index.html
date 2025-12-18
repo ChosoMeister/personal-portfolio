@@ -13,9 +13,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --app-bg: #f8fafc;
+        --card-bg: #ffffff;
+        --muted-surface: #f1f5f9;
+        --pill-bg: #e2e8f0;
+        --text-primary: #0f172a;
+        --text-muted: #6b7280;
+        --border-color: #e2e8f0;
+      }
+
+      body.dark {
+        --app-bg: #0f172a;
+        --card-bg: #0b1224;
+        --muted-surface: #111827;
+        --pill-bg: #1f2937;
+        --text-primary: #e2e8f0;
+        --text-muted: #94a3b8;
+        --border-color: #1f2937;
+      }
+
       body {
         font-family: 'Vazirmatn', sans-serif;
-        background-color: #111827;
+        background-color: var(--app-bg);
+        color: var(--text-primary);
         overscroll-behavior-y: none;
       }
       ::-webkit-scrollbar {
@@ -53,9 +74,9 @@
   }
 }
 </script>
-</head>
-  <body class="text-slate-900 antialiased h-full w-full overflow-hidden flex justify-center">
-    <div id="root" class="h-full w-full max-w-[480px] bg-white shadow-2xl"></div>
+  </head>
+  <body class="antialiased h-full w-full overflow-hidden flex justify-center text-[color:var(--text-primary)]">
+    <div id="root" class="h-full w-full max-w-[480px] shadow-2xl bg-[var(--card-bg)] text-[color:var(--text-primary)]"></div>
     <!-- Entry point for Vite Build -->
     <script type="module" src="/index.tsx"></script>
   </body>

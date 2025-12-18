@@ -11,7 +11,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { Transaction, PriceData, PortfolioSummary, ASSET_DETAILS, AssetSummary } from './types';
 import { API } from './services/api';
 import * as PriceService from './services/priceService';
-import { Plus, Search, Filter, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, ExternalLink, UserCircle } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle, Sun, Moon } from 'lucide-react';
 import { formatToman, formatNumber, formatPercent } from './utils/formatting';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -28,6 +28,15 @@ export default function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     if (user) {
@@ -124,10 +133,22 @@ export default function App() {
   if (!user) return <LoginPage onLoginSuccess={setUser} />;
 
   const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(searchQuery) || a.symbol.includes(searchQuery.toUpperCase()));
+  const isDark = theme === 'dark';
+  const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
+  const mutedText = 'text-[color:var(--text-muted)]';
+  const pillTone = 'bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]';
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'];
 
   return (
-    <Layout>
+    <Layout theme={theme}>
+      <button
+        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 rounded-full border border-[color:var(--border-color)] bg-[var(--card-bg)] text-[color:var(--text-primary)] shadow-md active:scale-95 transition-all"
+        aria-label="تغییر تم"
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        <span className="text-[11px] font-bold">{isDark ? 'تم روشن' : 'تم تیره'}</span>
+      </button>
       {tab === 'overview' && (
         <div className="p-4 space-y-4 animate-in fade-in duration-500 pb-20">
           <div className="flex justify-between items-center mb-2 px-1">
@@ -136,19 +157,19 @@ export default function App() {
                    <Shield size={16} className="text-white" />
                 </div>
                 <div>
-                   <span className="font-black text-gray-900 text-lg tracking-tight block leading-none">پنل مدیریت</span>
+                   <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">پنل مدیریت</span>
                    <span className="text-[10px] text-blue-600 font-bold uppercase">{user.username}</span>
                 </div>
              </div>
              <div className="flex items-center gap-2">
                 {user.isAdmin && (
-                  <button onClick={() => setIsAdminPanelOpen(true)} className="p-2.5 bg-amber-50 rounded-xl text-amber-600 hover:bg-amber-100 transition-all">
+                  <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}>
                     <UserCircle size={18} />
                   </button>
                 )}
-                <button 
-                  onClick={handleAiUpdate} 
-                  disabled={isAiLoading} 
+                <button
+                  onClick={handleAiUpdate}
+                  disabled={isAiLoading}
                   className={`flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl active:scale-95 transition-all ${isAiLoading ? 'animate-pulse opacity-70' : ''}`}
                 >
                    <Sparkles size={14} />
@@ -179,7 +200,7 @@ export default function App() {
           )}
           
           <div className="grid grid-cols-2 gap-3">
-             <div className="bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
+             <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
                 <div className="relative z-10">
                   <div className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-wider mb-1">
                     <ArrowUpRight size={14} />
@@ -187,13 +208,13 @@ export default function App() {
                   </div>
                   {portfolioSummary.assets[0] ? (
                     <div className="mt-2">
-                        <div className="font-black text-gray-900 text-sm truncate">{portfolioSummary.assets[0].name}</div>
+                        <div className="font-black text-[color:var(--text-primary)] text-sm truncate">{portfolioSummary.assets[0].name}</div>
                         <div className="text-emerald-500 text-xs font-black mt-1" dir="ltr">{formatPercent(portfolioSummary.assets[0].pnlPercent)}</div>
                     </div>
                   ) : <div className="text-gray-300 text-xs mt-2 font-bold">دیتا موجود نیست</div>}
                 </div>
              </div>
-             <div className="bg-white p-5 rounded-[28px] border border-gray-100 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group">
+             <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
                 <div className="relative z-10">
                   <div className="flex items-center gap-1.5 text-rose-600 font-black text-[10px] uppercase tracking-wider mb-1">
                     <ArrowDownRight size={14} />
@@ -201,7 +222,7 @@ export default function App() {
                   </div>
                   {portfolioSummary.assets.length > 1 ? (
                     <div className="mt-2">
-                        <div className="font-black text-gray-900 text-sm truncate">{portfolioSummary.assets[portfolioSummary.assets.length-1].name}</div>
+                        <div className="font-black text-[color:var(--text-primary)] text-sm truncate">{portfolioSummary.assets[portfolioSummary.assets.length-1].name}</div>
                         <div className="text-rose-500 text-xs font-black mt-1" dir="ltr">{formatPercent(portfolioSummary.assets[portfolioSummary.assets.length-1].pnlPercent)}</div>
                     </div>
                   ) : <div className="text-gray-300 text-xs mt-2 font-bold">دیتا موجود نیست</div>}
@@ -213,8 +234,14 @@ export default function App() {
 
       {tab === 'holdings' && (
         <div className="animate-in fade-in duration-300 pb-20">
-          <div className="sticky top-0 bg-white/80 backdrop-blur-md z-40 px-4 py-4 shadow-sm border-b border-gray-100">
-            <input type="text" placeholder="جستجو..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-gray-100 rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none" />
+          <div className="sticky top-0 bg-[color:var(--card-bg)]/80 backdrop-blur-md z-40 px-4 py-4 shadow-sm border-b border-[color:var(--border-color)]">
+            <input
+              type="text"
+              placeholder="جستجو..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
+            />
           </div>
           <div>
             {filteredAssets.map(asset => (
@@ -227,23 +254,23 @@ export default function App() {
       {tab === 'transactions' && (
         <div className="p-4 pb-24 animate-in fade-in duration-300">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-black text-gray-900">تاریخچه</h2>
+            <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsSettingsModalOpen(true)} className="p-2.5 bg-gray-100 rounded-xl text-gray-500"><Settings size={18} /></button>
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]"><Settings size={18} /></button>
               <button onClick={() => setUser(null)} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
             </div>
           </div>
           <div className="space-y-3">
             {[...transactions].reverse().map(tx => (
-              <div key={tx.id} onClick={() => { setEditingTransaction(tx); setIsTxModalOpen(true); }} className="bg-white p-5 rounded-3xl border border-gray-100 flex justify-between items-center cursor-pointer">
+              <div key={tx.id} onClick={() => { setEditingTransaction(tx); setIsTxModalOpen(true); }} className={`${cardSurface} p-5 rounded-3xl flex justify-between items-center cursor-pointer`}>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-[10px]">{tx.assetSymbol}</div>
                   <div>
-                    <div className="font-black text-sm text-gray-900">{ASSET_DETAILS[tx.assetSymbol].name}</div>
-                    <div className="text-[10px] font-bold text-gray-400 mt-1" dir="ltr">{new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}</div>
+                    <div className="font-black text-sm text-[color:var(--text-primary)]">{ASSET_DETAILS[tx.assetSymbol].name}</div>
+                    <div className={`text-[10px] font-bold mt-1 ${mutedText}`} dir="ltr">{new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}</div>
                   </div>
                 </div>
-                <div className="text-left font-black text-sm text-gray-900" dir="ltr">{formatNumber(tx.quantity)}</div>
+                <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">{formatNumber(tx.quantity)}</div>
               </div>
             ))}
           </div>
