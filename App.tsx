@@ -14,6 +14,7 @@ import * as PriceService from './services/priceService';
 import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle } from 'lucide-react';
 import { formatToman, formatNumber, formatPercent } from './utils/formatting';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import * as AuthService from './services/authService';
 
 export default function App() {
   const [user, setUser] = useState<{ username: string, isAdmin: boolean } | null>(null);
@@ -166,6 +167,13 @@ export default function App() {
 
   if (!user) return <LoginPage onLoginSuccess={setUser} />;
 
+  const handleLogout = () => {
+    AuthService.logout();
+    setUser(null);
+    setIsSettingsDrawerOpen(false);
+    setIsAdminPanelOpen(false);
+  };
+
   const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(searchQuery) || a.symbol.includes(searchQuery.toUpperCase()));
   const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
   const mutedText = 'text-[color:var(--text-muted)]';
@@ -289,7 +297,7 @@ export default function App() {
             <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
             <div className="flex items-center gap-2">
               <button onClick={() => setIsSettingsDrawerOpen(true)} className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]" aria-label="تنظیمات"><Settings size={18} /></button>
-              <button onClick={() => setUser(null)} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
+              <button onClick={handleLogout} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
             </div>
           </div>
           <div className="space-y-3">
@@ -319,6 +327,7 @@ export default function App() {
         onDisplayNameChange={handleDisplayNameChange}
         theme={theme}
         onThemeChange={setTheme}
+        onLogout={handleLogout}
       />
       {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
     </Layout>
