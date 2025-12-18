@@ -3,6 +3,18 @@ import { GoogleGenAI } from "@google/genai";
 import { PriceData } from '../types';
 import { API } from './api';
 
+const sendLogToServer = async (level: 'info' | 'warn' | 'error', message: string, context?: any) => {
+  try {
+    await fetch('/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ level, message, context })
+    });
+  } catch (err) {
+    console.warn('Failed to send log to server', err);
+  }
+};
+
 // ایمن‌سازی کلید API - از متغیرهای محیطی با پیشوند VITE برای کلاینت و گزینه‌های سرور پشتیبانی می‌کند
 const resolveApiKey = (): string => {
   // Vite در زمان بیلد فقط متغیرهای با پیشوند VITE_ را به فرانت‌اند اکسپوز می‌کند
@@ -21,6 +33,7 @@ const resolveApiKey = (): string => {
 const getAIClient = () => {
   const apiKey = resolveApiKey();
   if (!apiKey) {
+    sendLogToServer('error', 'Gemini API key is missing. Please set VITE_GEMINI_API_KEY before building the image.');
     throw new Error('Gemini API key is not configured. Set VITE_GEMINI_API_KEY in your environment.');
   }
   return new GoogleGenAI({ apiKey });
@@ -89,6 +102,7 @@ export const fetchLivePricesWithAI = async (): Promise<{ data: PriceData, source
     return { data: updatedData, sources };
   } catch (error) {
     console.error("AI Price Fetch Error:", error);
+    sendLogToServer('error', 'AI price fetch failed', { error: String(error) });
     const lastStored = await API.getPrices();
     return { data: lastStored || DEFAULT_PRICES, sources: [] };
   }

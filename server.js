@@ -61,6 +61,20 @@ const refreshAdmin = () => {
 };
 refreshAdmin();
 
+// ساده‌ترین مسیر برای ارسال لاگ‌های سمت کلاینت به لاگ‌های داکر
+app.post('/api/logs', (req, res) => {
+    const { level = 'info', message = '', context = {} } = req.body || {};
+    const logLine = `[ClientLog][${level.toUpperCase()}] ${message}`;
+
+    if (level === 'error' || level === 'warn') {
+        console.error(logLine, context);
+    } else {
+        console.log(logLine, context);
+    }
+
+    res.json({ success: true });
+});
+
 // API Endpoints
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
