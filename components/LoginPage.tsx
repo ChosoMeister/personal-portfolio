@@ -68,7 +68,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             <h1 className="text-3xl font-black text-white mb-2">
               {isRegister ? 'ایجاد حساب' : 'خوش آمدید'}
             </h1>
-            <p className="text-slate-400 text-sm font-medium">پرتفولیو هوشمند ارکید فارمد</p>
+            <p className="text-slate-400 text-sm font-medium">پرتفولیو هوشمند</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -146,7 +146,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         </div>
         
         <div className="mt-8 text-center">
-            <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Powered by Gemini AI Engine</p>
+            <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Powered by AI Engine</p>
         </div>
       </div>
     </div>
