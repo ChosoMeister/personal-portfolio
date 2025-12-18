@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, UserCircle, Palette, Moon, SunMedium, Laptop2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, UserCircle, Palette, Moon, SunMedium, Laptop2, Lock, CheckCircle2, AlertCircle, LogOut } from 'lucide-react';
 import * as AuthService from '../services/authService';
 
 export type ThemeOption = 'light' | 'dark' | 'system';
@@ -11,6 +11,7 @@ interface SettingsDrawerProps {
   onDisplayNameChange: (name: string) => void;
   theme: ThemeOption;
   onThemeChange: (theme: ThemeOption) => void;
+  onLogout: () => void;
 }
 
 export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
@@ -20,6 +21,7 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onDisplayNameChange,
   theme,
   onThemeChange,
+  onLogout,
 }) => {
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -231,15 +233,11 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setCurrentPass('');
-                    setNewPass('');
-                    setConfirmPass('');
-                    setStatus({ type: null, msg: '' });
-                  }}
-                  className="flex-1 border border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)] font-black py-3 rounded-2xl active:scale-95 transition-all"
+                  onClick={onLogout}
+                  className="flex-1 border border-rose-200 bg-rose-50 text-rose-600 font-black py-3 rounded-2xl active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
-                  پاک کردن
+                  <LogOut size={18} />
+                  خروج از حساب
                 </button>
               </div>
             </form>
