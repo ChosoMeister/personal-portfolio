@@ -228,7 +228,7 @@ export default function App() {
                   <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">{displayName || 'پنل مدیریت'}</span>
                   <div className="flex items-center gap-1 mt-1">
                     <span className="text-[10px] text-blue-600 font-bold uppercase">{user.username}</span>
-                    <span className="text-[8px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded flex items-center gap-0.5 border border-violet-200 dark:border-violet-500/20">
+                    <span className="text-[8px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded hidden sm:flex items-center gap-0.5 border border-violet-200 dark:border-violet-500/20">
                       <Sparkles size={8} /> Powered by AI
                     </span>
                   </div>
