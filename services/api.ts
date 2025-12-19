@@ -73,23 +73,27 @@ const withTimeout = async (url: string, options: RequestInit = {}) => {
 };
 
 const findLocalUserByCredentials = (username: string, pass: string) => {
+  const normalizedUsername = username.toLowerCase();
   const localUsers = getLocalUsers();
-  return localUsers.find((u: any) => u.username === username && (u.password === pass || u.passwordHash === pass));
+  return localUsers.find((u: any) => u.username === normalizedUsername && (u.password === pass || u.passwordHash === pass));
 };
 
 const persistLocalCredential = ({ username, password, isAdmin }: Credential) => {
   if (!password) return;
+  const normalizedUsername = username.toLowerCase();
   const users = getLocalUsers();
-  const existing = users.find((u: any) => u.username === username);
+  const existing = users.find((u: any) => u.username === normalizedUsername);
   if (existing) {
     existing.password = password;
     existing.passwordHash = password;
     if (typeof isAdmin === 'boolean') existing.isAdmin = isAdmin;
   } else {
-    users.push({ username, password, passwordHash: password, isAdmin: !!isAdmin, transactions: [], createdAt: new Date().toISOString() });
+    users.push({ username: normalizedUsername, password, passwordHash: password, isAdmin: !!isAdmin, transactions: [], createdAt: new Date().toISOString() });
   }
   saveLocalUsers(users);
 };
+
+
 
 const mergeServerUsersWithLocal = (serverUsers: any[], credential?: Credential) => {
   const localUsers = getLocalUsers();
@@ -128,6 +132,7 @@ const trySyncLocalUsers = async (credential?: Credential) => {
 
 export const API = {
   login: async (username: string, pass: string) => {
+    username = username.toLowerCase();
     let serverResponded = false;
     try {
       const res = await withTimeout(`${BASE_URL}/api/login`, {
@@ -156,6 +161,7 @@ export const API = {
   },
 
   register: async (username: string, pass: string) => {
+    username = username.toLowerCase();
     let serverResponded = false;
     try {
       const res = await withTimeout(`${BASE_URL}/api/register`, {
@@ -179,6 +185,7 @@ export const API = {
   },
 
   getTransactions: async (username: string) => {
+    username = username.toLowerCase();
     try {
       const res = await fetch(`${BASE_URL}/api/transactions?username=${username}`);
       if (res.ok) return res.json();
@@ -188,6 +195,7 @@ export const API = {
   },
 
   saveTransaction: async (username: string, tx: Transaction) => {
+    username = username.toLowerCase();
     const users = getLocalUsers();
     const user = users.find((u: any) => u.username === username);
     if (user) {
@@ -200,10 +208,11 @@ export const API = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, transaction: tx })
-    }).catch(() => {});
+    }).catch(() => { });
   },
 
   deleteTransaction: async (username: string, txId: string) => {
+    username = username.toLowerCase();
     const users = getLocalUsers();
     const user = users.find((u: any) => u.username === username);
     if (user) {
@@ -214,7 +223,7 @@ export const API = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, id: txId })
-    }).catch(() => {});
+    }).catch(() => { });
   },
 
   getPrices: async () => {
@@ -231,7 +240,7 @@ export const API = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prices)
-    }).catch(() => {});
+    }).catch(() => { });
   },
 
   getAllUsers: async (): Promise<{ users: any[], offline?: boolean, message?: string }> => {
@@ -261,6 +270,7 @@ export const API = {
   },
 
   deleteUser: async (username: string) => {
+    username = username.toLowerCase();
     let serverResponded = false;
     try {
       const res = await withTimeout(`${BASE_URL}/api/users/delete`, {
@@ -281,6 +291,7 @@ export const API = {
   },
 
   updateUserPassword: async (username: string, newPass: string) => {
+    username = username.toLowerCase();
     let serverResponded = false;
     try {
       const res = await withTimeout(`${BASE_URL}/api/users/update-pass`, {
