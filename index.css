@@ -61,17 +61,17 @@ body.dark .glass {
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.6);
   /* Milky white for light mode */
-  backdrop-filter: blur(40px) saturate(150%);
-  -webkit-backdrop-filter: blur(40px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(45px) saturate(180%);
+  -webkit-backdrop-filter: blur(45px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
 }
 
 body.dark .glass-strong {
-  background: rgba(20, 20, 20, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 17, 32, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* Animated Gradients */

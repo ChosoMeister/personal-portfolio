@@ -213,7 +213,7 @@ export const API = {
     await fetch(`${BASE_URL}/api/transactions/delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, txId })
+      body: JSON.stringify({ username, id: txId })
     }).catch(() => {});
   },
 
