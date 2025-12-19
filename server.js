@@ -17,12 +17,37 @@ const DATA_DIR = process.env.NODE_ENV === 'production' ? '/app/data' : path.join
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json');
 
+// Memory Cache
+let usersCache = [];
+let pricesCache = null;
+
 // اطمینان از وجود دایرکتوری داده‌ها
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
-if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, JSON.stringify([]));
-if (!fs.existsSync(PRICES_FILE)) fs.writeFileSync(PRICES_FILE, JSON.stringify(null));
+
+// Load data into memory on startup
+try {
+    if (fs.existsSync(USERS_FILE)) {
+        usersCache = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    } else {
+        fs.writeFileSync(USERS_FILE, JSON.stringify([]));
+    }
+} catch (e) {
+    console.error('Error loading users:', e);
+    usersCache = [];
+}
+
+try {
+    if (fs.existsSync(PRICES_FILE)) {
+        pricesCache = JSON.parse(fs.readFileSync(PRICES_FILE, 'utf8'));
+    } else {
+        fs.writeFileSync(PRICES_FILE, JSON.stringify(null));
+    }
+} catch (e) {
+    console.error('Error loading prices:', e);
+    pricesCache = null;
+}
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -32,19 +57,23 @@ const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'password';
 
 const getUsers = () => {
+    return usersCache;
+};
+
+const saveUsers = async (users) => {
+    usersCache = users; // Update Memory Immediately
     try {
-        const data = fs.readFileSync(USERS_FILE, 'utf8');
-        return JSON.parse(data);
-    } catch (e) { return []; }
+        await fs.promises.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    } catch (e) {
+        console.error('Error saving users to disk:', e);
+    }
 };
 
-const saveUsers = (users) => {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-};
-
-const refreshAdmin = () => {
-    let users = getUsers();
+const refreshAdmin = async () => {
+    let users = [...getUsers()]; // Clone to avoid mutation issues
     let adminIdx = users.findIndex(u => u.username === ADMIN_USER);
+    let changed = false;
+
     if (adminIdx === -1) {
         users.push({ 
             username: ADMIN_USER, 
@@ -53,11 +82,16 @@ const refreshAdmin = () => {
             createdAt: new Date(), 
             transactions: [] 
         });
+        changed = true;
     } else {
-        users[adminIdx].passwordHash = ADMIN_PASS;
-        users[adminIdx].isAdmin = true;
+        if (users[adminIdx].passwordHash !== ADMIN_PASS || !users[adminIdx].isAdmin) {
+            users[adminIdx].passwordHash = ADMIN_PASS;
+            users[adminIdx].isAdmin = true;
+            changed = true;
+        }
     }
-    saveUsers(users);
+    
+    if (changed) await saveUsers(users);
 };
 refreshAdmin();
 
@@ -84,13 +118,13 @@ app.post('/api/login', (req, res) => {
     res.status(401).json({ message: 'نام کاربری یا رمز عبور اشتباه است' });
 });
 
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
-    let users = getUsers();
+    let users = [...getUsers()];
     if (users.find(u => u.username === username)) return res.status(400).json({ message: 'نام کاربری تکراری است' });
     const newUser = { username, passwordHash: password, createdAt: new Date(), transactions: [], isAdmin: false };
     users.push(newUser);
-    saveUsers(users);
+    await saveUsers(users);
     res.json({ username: newUser.username, isAdmin: false });
 });
 
@@ -98,10 +132,10 @@ app.get('/api/users', (req, res) => {
     res.json(getUsers().map(u => ({ username: u.username, createdAt: u.createdAt, txCount: u.transactions.length, isAdmin: !!u.isAdmin })));
 });
 
-app.post('/api/users/delete', (req, res) => {
+app.post('/api/users/delete', async (req, res) => {
     const { username } = req.body;
     if (username === ADMIN_USER) return res.status(400).json({ message: 'حذف ادمین غیرمجاز است' });
-    saveUsers(getUsers().filter(u => u.username !== username));
+    await saveUsers(getUsers().filter(u => u.username !== username));
     res.json({ success: true });
 });
 
@@ -110,27 +144,36 @@ app.get('/api/transactions', (req, res) => {
     res.json(user ? user.transactions : []);
 });
 
-app.post('/api/transactions', (req, res) => {
+app.post('/api/transactions', async (req, res) => {
     const { username, transaction } = req.body;
-    let users = getUsers();
-    const user = users.find(u => u.username === username);
-    if (user) {
+    let users = [...getUsers()];
+    const userIndex = users.findIndex(u => u.username === username);
+    
+    if (userIndex > -1) {
+        // Create a copy of the user to update
+        const user = { ...users[userIndex], transactions: [...users[userIndex].transactions] };
         const idx = user.transactions.findIndex(t => t.id === transaction.id);
+        
         if (idx > -1) user.transactions[idx] = transaction;
         else user.transactions.push(transaction);
-        saveUsers(users);
+        
+        users[userIndex] = user;
+        await saveUsers(users);
     }
     res.json({ success: true });
 });
 
 app.get('/api/prices', (req, res) => {
-    try {
-        res.json(JSON.parse(fs.readFileSync(PRICES_FILE, 'utf8')));
-    } catch (e) { res.json(null); }
+    res.json(pricesCache);
 });
 
-app.post('/api/prices', (req, res) => {
-    fs.writeFileSync(PRICES_FILE, JSON.stringify(req.body));
+app.post('/api/prices', async (req, res) => {
+    pricesCache = req.body;
+    try {
+        await fs.promises.writeFile(PRICES_FILE, JSON.stringify(req.body));
+    } catch (e) {
+        console.error('Error saving prices:', e);
+    }
     res.json({ success: true });
 });
 
