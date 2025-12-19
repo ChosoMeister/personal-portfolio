@@ -370,8 +370,8 @@ export default function App() {
         {/* Floating Action Button */}
         <button
           onClick={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
-          className="fixed bottom-28 left-6 z-[999] ripple spring-bounce bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl p-4 shadow-xl hover:shadow-2xl active:scale-90 transition-all border border-white/10"
-          style={{ left: '1.5rem', right: 'auto' }}
+          className="fixed bottom-24 right-6 md:right-8 z-[999] ripple spring-bounce bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl p-4 shadow-xl hover:shadow-2xl active:scale-90 transition-all border border-white/10"
+          aria-label="افزودن تراکنش جدید"
         >
           <Plus size={24} strokeWidth={3} />
         </button>

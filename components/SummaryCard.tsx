@@ -68,15 +68,21 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ summary, isRefreshing,
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 px-2">
-            <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 px-2">
+            <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-3 py-1.5 rounded-full" dir="ltr">
               <Clock size={12} />
-              <span>{new Date(lastUpdated).toLocaleTimeString('fa-IR')} - {new Date(lastUpdated).toLocaleDateString('fa-IR')}</span>
+              <span>{new Date(lastUpdated).toLocaleTimeString('fa-IR')} • {new Date(lastUpdated).toLocaleDateString('fa-IR')}</span>
             </div>
             {prices && (
-              <div className="flex items-center gap-3">
-                <span className="text-yellow-600 dark:text-yellow-500">طلای ۱۸ (گرم): ت {formatNumber(prices.gold18 / 10, 0)}</span>
-                <span className="text-emerald-600 dark:text-emerald-500">دلار آزاد: ت {formatNumber(prices.usdToToman, 0)}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 text-yellow-700 dark:text-yellow-400 dark:border-yellow-500/20 backdrop-blur-md" dir="ltr">
+                  <span className="text-yellow-700 dark:text-yellow-400">طلای ۱۸ (گرم)</span>
+                  <span className="font-black">ت {formatNumber(prices.gold18ToToman || 0, 0)}</span>
+                </span>
+                <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 dark:border-emerald-500/20 backdrop-blur-md" dir="ltr">
+                  <span className="text-emerald-700 dark:text-emerald-400">دلار آزاد</span>
+                  <span className="font-black">ت {formatNumber(prices.usdToToman || 0, 0)}</span>
+                </span>
               </div>
             )}
           </div>
