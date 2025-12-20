@@ -1,17 +1,25 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { LayoutDashboard, PieChart, History } from 'lucide-react';
+import { useHaptics } from '../hooks/useHaptics';
 
 interface BottomNavProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange }) => {
-  const tabs = [
-    { id: 'overview', label: 'نگاه کلی', icon: LayoutDashboard },
-    { id: 'holdings', label: 'دارایی‌ها', icon: PieChart },
-    { id: 'transactions', label: 'تراکنش‌ها', icon: History },
-  ];
+const tabs = [
+  { id: 'overview', label: 'نگاه کلی', icon: LayoutDashboard },
+  { id: 'holdings', label: 'دارایی‌ها', icon: PieChart },
+  { id: 'transactions', label: 'تراکنش‌ها', icon: History },
+];
+
+const BottomNavComponent: React.FC<BottomNavProps> = ({ currentTab, onTabChange }) => {
+  const { haptic } = useHaptics();
+
+  const handleTabChange = useCallback((tabId: string) => {
+    haptic('selection');
+    onTabChange(tabId);
+  }, [haptic, onTabChange]);
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[520px] px-6 z-[60] pb-safe">
@@ -22,7 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange })
           return (
             <button
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative px-4 ${isActive ? 'text-blue-600 dark:text-blue-300 scale-110 drop-shadow-[0_0_8px_rgba(59,130,246,0.55)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
             >
@@ -39,3 +47,5 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange })
     </div>
   );
 };
+
+export const BottomNav = memo(BottomNavComponent);

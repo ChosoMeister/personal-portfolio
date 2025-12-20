@@ -15,6 +15,8 @@ import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles,
 import { formatToman, formatNumber, formatPercent } from './utils/formatting';
 import * as AuthService from './services/authService';
 import { useToast } from './components/Toast';
+import { TransactionFilter, TransactionFilters, filterTransactions } from './components/TransactionFilter';
+import { useHaptics } from './hooks/useHaptics';
 
 // Lazy Load Heavy Components
 const TransactionModal = lazy(() => import('./components/TransactionModal').then(module => ({ default: module.TransactionModal })));
@@ -35,7 +37,12 @@ export default function App() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [txFilters, setTxFilters] = useState<TransactionFilters>({
+    assetType: 'ALL',
+    dateRange: 'all',
+    searchQuery: '',
+  });
+  const { haptic } = useHaptics();
   const { addToast } = useToast();
   // Pull-to-refresh state
   const [pullStartY, setPullStartY] = useState(0);
@@ -258,7 +265,7 @@ export default function App() {
     setIsAdminPanelOpen(false);
   };
 
-  const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(searchQuery) || a.symbol.includes(searchQuery.toUpperCase()));
+  const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(txFilters.searchQuery) || a.symbol.includes(txFilters.searchQuery.toUpperCase()));
   const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
   const mutedText = 'text-[color:var(--text-muted)]';
   const pillTone = 'bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]';
@@ -293,7 +300,7 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setIsSettingsDrawerOpen(true)}
+                    onClick={() => { haptic('light'); setIsSettingsDrawerOpen(true); }}
                     className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
                     aria-label="تنظیمات حساب"
                   >
@@ -305,7 +312,7 @@ export default function App() {
                     </button>
                   )}
                   <button
-                    onClick={handlePriceUpdate}
+                    onClick={() => { haptic('medium'); handlePriceUpdate(); }}
                     disabled={isPriceUpdating}
                     className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
                   >
@@ -390,8 +397,8 @@ export default function App() {
               <input
                 type="text"
                 placeholder="جستجو..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={txFilters.searchQuery}
+                onChange={(e) => setTxFilters(f => ({ ...f, searchQuery: e.target.value }))}
                 className="w-full bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
               />
             </div>
@@ -406,7 +413,7 @@ export default function App() {
             ) : (
               <div>
                 {filteredAssets.map(asset => (
-                  <AssetRow key={asset.symbol} asset={asset} onClick={() => { setTab('transactions'); setSearchQuery(asset.symbol); }} />
+                  <AssetRow key={asset.symbol} asset={asset} onClick={() => { haptic('light'); setTab('transactions'); setTxFilters(f => ({ ...f, searchQuery: asset.symbol })); }} />
                 ))}
               </div>
             )}
@@ -415,26 +422,35 @@ export default function App() {
 
         {tab === 'transactions' && (
           <div className="p-4 pb-24 animate-in fade-in duration-300">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsSettingsDrawerOpen(true)}
+                  onClick={() => { haptic('medium'); setIsSettingsDrawerOpen(true); }}
                   className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]"
                   aria-label="تنظیمات"
                 >
                   <Settings size={18} />
                 </button>
                 <button
-                  onClick={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
+                  onClick={() => { haptic('success'); setEditingTransaction(null); setIsTxModalOpen(true); }}
                   className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white border border-white/10 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 transition-all"
                   aria-label="افزودن تراکنش جدید"
                 >
                   <Plus size={18} strokeWidth={3} />
                 </button>
-                <button onClick={handleLogout} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
+                <button onClick={() => { haptic('error'); handleLogout(); }} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
               </div>
             </div>
+
+            {/* Transaction Filters */}
+            <div className="mb-4">
+              <TransactionFilter
+                filters={txFilters}
+                onFiltersChange={setTxFilters}
+              />
+            </div>
+
             {transactions.length === 0 ? (
               <EmptyState
                 type="transactions"
@@ -443,22 +459,33 @@ export default function App() {
                 actionLabel="ثبت تراکنش جدید"
                 onAction={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
               />
-            ) : (
-              <div className="space-y-3">
-                {[...transactions].reverse().map(tx => (
-                  <div key={tx.id} onClick={() => { setEditingTransaction(tx); setIsTxModalOpen(true); }} className={`${cardSurface} p-5 rounded-3xl flex justify-between items-center cursor-pointer`}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-[10px]">{tx.assetSymbol}</div>
-                      <div>
-                        <div className="font-black text-sm text-[color:var(--text-primary)]">{getAssetDetail(tx.assetSymbol).name}</div>
-                        <div className={`text-[10px] font-bold mt-1 ${mutedText}`} dir="ltr">{new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}</div>
+            ) : (() => {
+              const filteredTxs = filterTransactions(
+                [...transactions].reverse(),
+                txFilters,
+                (symbol) => getAssetDetail(symbol).type
+              );
+              return filteredTxs.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-[color:var(--text-muted)] font-bold">تراکنشی با این فیلترها یافت نشد</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredTxs.map(tx => (
+                    <div key={tx.id} onClick={() => { haptic('light'); setEditingTransaction(tx); setIsTxModalOpen(true); }} className={`${cardSurface} p-5 rounded-3xl flex justify-between items-center cursor-pointer`}>
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-[10px]">{tx.assetSymbol}</div>
+                        <div>
+                          <div className="font-black text-sm text-[color:var(--text-primary)]">{getAssetDetail(tx.assetSymbol).name}</div>
+                          <div className={`text-[10px] font-bold mt-1 ${mutedText}`} dir="ltr">{new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}</div>
+                        </div>
                       </div>
+                      <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">{formatNumber(tx.quantity)}</div>
                     </div>
-                    <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">{formatNumber(tx.quantity)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 

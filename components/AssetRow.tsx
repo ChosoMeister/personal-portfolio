@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 import { AssetSummary, getAssetDetail } from '../types';
 import { formatToman, formatPercent, formatNumber, getAssetFallbackIcon, getAssetIconUrl } from '../utils/formatting';
 import { TrendingUp, TrendingDown } from 'lucide-react';
@@ -9,7 +9,7 @@ interface AssetRowProps {
   onClick: () => void;
 }
 
-export const AssetRow: React.FC<AssetRowProps> = ({ asset, onClick }) => {
+const AssetRowComponent: React.FC<AssetRowProps> = ({ asset, onClick }) => {
   const isProfit = asset.pnlToman >= 0;
   const [iconUrl, setIconUrl] = useState(getAssetIconUrl(asset.symbol));
   const mutedText = 'text-[color:var(--text-muted)]';
@@ -29,6 +29,7 @@ export const AssetRow: React.FC<AssetRowProps> = ({ asset, onClick }) => {
             src={iconUrl}
             alt={asset.symbol}
             className="w-full h-full object-contain"
+            loading="lazy"
             onError={() => setIconUrl(getAssetFallbackIcon(asset.symbol))}
           />
         </div>
@@ -63,3 +64,13 @@ export const AssetRow: React.FC<AssetRowProps> = ({ asset, onClick }) => {
     </div>
   );
 };
+
+// Memoize to prevent unnecessary re-renders when props haven't changed
+export const AssetRow = memo(AssetRowComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.asset.symbol === nextProps.asset.symbol &&
+    prevProps.asset.currentValueToman === nextProps.asset.currentValueToman &&
+    prevProps.asset.pnlToman === nextProps.asset.pnlToman &&
+    prevProps.asset.totalQuantity === nextProps.asset.totalQuantity
+  );
+});
