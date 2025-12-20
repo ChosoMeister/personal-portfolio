@@ -23,6 +23,7 @@ const SettingsDrawer = lazy(() => import('./components/SettingsDrawer').then(mod
 export default function App() {
   type SessionUser = { username: string; isAdmin: boolean; displayName?: string };
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [tab, setTab] = useState('overview');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [prices, setPrices] = useState<PriceData | null>(null);
@@ -47,6 +48,29 @@ export default function App() {
     { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
     { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
   ];
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setSessionChecked(true);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(AuthService.SESSION_USER_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.username && typeof parsed.isAdmin === 'boolean') {
+          setUser(parsed);
+        } else {
+          localStorage.removeItem(AuthService.SESSION_USER_KEY);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore session', error);
+      localStorage.removeItem(AuthService.SESSION_USER_KEY);
+    } finally {
+      setSessionChecked(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -220,10 +244,12 @@ export default function App() {
   // Ideally we should move types to types.ts but I will stick to minimal changes.
   type ThemeOption = 'light' | 'dark' | 'system';
 
+  if (!sessionChecked) return null;
   if (!user) return <LoginPage onLoginSuccess={setUser} />;
 
   const handleLogout = () => {
     AuthService.logout();
+    localStorage.removeItem(AuthService.SESSION_USER_KEY);
     setUser(null);
     setIsSettingsDrawerOpen(false);
     setIsAdminPanelOpen(false);

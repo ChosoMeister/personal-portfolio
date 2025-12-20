@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, User, ShieldCheck, UserPlus, LogIn, AlertCircle, Zap, HelpCircle, RefreshCcw } from 'lucide-react';
 import { API } from '../services/api';
+import { SESSION_USER_KEY } from '../services/authService';
 
 interface LoginPageProps {
   onLoginSuccess: (user: { username: string, isAdmin: boolean, displayName?: string }) => void;
@@ -83,6 +84,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError('');
     setNotice('');
 
+    const persistSessionUser = (sessionUser: { username: string, isAdmin: boolean, displayName?: string }) => {
+      localStorage.setItem(SESSION_USER_KEY, JSON.stringify({
+        username: sessionUser.username,
+        isAdmin: sessionUser.isAdmin,
+        displayName: sessionUser.displayName,
+      }));
+    };
+
     try {
       if (isForgot) {
         if (!username) throw new Error('نام کاربری را وارد کنید');
@@ -98,9 +107,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         if (password.length < 4) throw new Error('رمز عبور باید حداقل ۴ کاراکتر باشد');
         if (!securityQuestion || !securityAnswer) throw new Error('سوال و پاسخ امنیتی را وارد کنید');
         const user = await API.register(username, password, displayName || username, securityQuestion, securityAnswer);
+        persistSessionUser(user!);
         onLoginSuccess(user!);
       } else {
         const user = await API.login(username, password);
+        persistSessionUser(user);
         onLoginSuccess(user);
       }
     } catch (err: any) {
@@ -115,7 +126,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleFastLogin = () => {
     // ورود مستقیم با اکانت ادمین پیش‌فرض
-    onLoginSuccess({ username: 'admin', isAdmin: true, displayName: 'ادمین سیستم' });
+    const user = { username: 'admin', isAdmin: true, displayName: 'ادمین سیستم' };
+    localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
+    onLoginSuccess(user);
   };
 
   return (
