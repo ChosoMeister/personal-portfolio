@@ -21,7 +21,8 @@ const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => (
 const SettingsDrawer = lazy(() => import('./components/SettingsDrawer').then(module => ({ default: module.SettingsDrawer })));
 
 export default function App() {
-  const [user, setUser] = useState<{ username: string, isAdmin: boolean } | null>(null);
+  type SessionUser = { username: string; isAdmin: boolean; displayName?: string };
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [tab, setTab] = useState('overview');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [prices, setPrices] = useState<PriceData | null>(null);
@@ -71,7 +72,14 @@ export default function App() {
     }
 
     const storedName = localStorage.getItem(`displayName:${user.username}`);
-    setDisplayName(storedName || user.username);
+    if (storedName) {
+      setDisplayName(storedName);
+    } else if (user.displayName) {
+      setDisplayName(user.displayName);
+      localStorage.setItem(`displayName:${user.username}`, user.displayName);
+    } else {
+      setDisplayName(user.username);
+    }
   }, [user]);
 
   useEffect(() => {

@@ -47,17 +47,24 @@ const seedAdmin = () => {
       username,
       isAdmin: true,
       transactions: [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      displayName: 'ادمین سیستم'
     };
     if (password) {
       adminUser.password = password;
       adminUser.passwordHash = password;
     }
     saveLocalUsers([...users, adminUser]);
-  } else if (password && admin.password !== password && admin.passwordHash !== password) {
-    admin.password = password;
-    admin.passwordHash = password;
-    saveLocalUsers(users);
+  } else {
+    if (password && admin.password !== password && admin.passwordHash !== password) {
+      admin.password = password;
+      admin.passwordHash = password;
+      saveLocalUsers(users);
+    }
+    if (!admin.displayName) {
+      admin.displayName = 'ادمین سیستم';
+      saveLocalUsers(users);
+    }
   }
 };
 seedAdmin();
@@ -78,7 +85,7 @@ const findLocalUserByCredentials = (username: string, pass: string) => {
   return localUsers.find((u: any) => u.username === normalizedUsername && (u.password === pass || u.passwordHash === pass));
 };
 
-const persistLocalCredential = ({ username, password, isAdmin }: Credential) => {
+const persistLocalCredential = ({ username, password, isAdmin, displayName }: Credential) => {
   if (!password) return;
   const normalizedUsername = username.toLowerCase();
   const users = getLocalUsers();
@@ -87,8 +94,17 @@ const persistLocalCredential = ({ username, password, isAdmin }: Credential) => 
     existing.password = password;
     existing.passwordHash = password;
     if (typeof isAdmin === 'boolean') existing.isAdmin = isAdmin;
+    if (displayName) existing.displayName = displayName;
   } else {
-    users.push({ username: normalizedUsername, password, passwordHash: password, isAdmin: !!isAdmin, transactions: [], createdAt: new Date().toISOString() });
+    users.push({
+      username: normalizedUsername,
+      password,
+      passwordHash: password,
+      isAdmin: !!isAdmin,
+      transactions: [],
+      createdAt: new Date().toISOString(),
+      displayName: displayName || normalizedUsername
+    });
   }
   saveLocalUsers(users);
 };
@@ -110,7 +126,10 @@ const mergeServerUsersWithLocal = (serverUsers: any[], credential?: Credential) 
       transactions: local.transactions || [],
       password,
       passwordHash: password || local.passwordHash,
-      txCount: su.txCount ?? (local.transactions?.length || 0)
+      txCount: su.txCount ?? (local.transactions?.length || 0),
+      displayName: su.displayName || local.displayName || su.username,
+      securityQuestion: su.securityQuestion || local.securityQuestion,
+      securityAnswerHash: local.securityAnswerHash
     };
   });
 };
@@ -144,7 +163,7 @@ export const API = {
 
       if (res.ok) {
         const data = await res.json();
-        await trySyncLocalUsers({ username, password: pass, isAdmin: data.isAdmin });
+        await trySyncLocalUsers({ username, password: pass, isAdmin: data.isAdmin, displayName: data.displayName });
         return data;
       }
 
@@ -155,32 +174,34 @@ export const API = {
       if (serverResponded) throw e;
       console.warn('Backend server not responding, attempting offline login.', e);
       const localUser = findLocalUserByCredentials(username, pass);
-      if (localUser) return { username: localUser.username, isAdmin: !!localUser.isAdmin, offline: true };
+      if (localUser) return { username: localUser.username, isAdmin: !!localUser.isAdmin, offline: true, displayName: localUser.displayName || localUser.username };
       throw new Error('نام کاربری یا رمز عبور اشتباه است');
     }
   },
 
-  register: async (username: string, pass: string) => {
+  register: async (username: string, pass: string, displayName: string, securityQuestion: string, securityAnswer: string) => {
     username = username.toLowerCase();
     let serverResponded = false;
     try {
       const res = await withTimeout(`${BASE_URL}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password: pass })
+        body: JSON.stringify({ username, password: pass, displayName, securityQuestion, securityAnswer })
       });
       serverResponded = true;
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'ثبت‌نام با خطا مواجه شد');
-      await trySyncLocalUsers({ username, password: pass, isAdmin: false });
+      await trySyncLocalUsers({ username, password: pass, isAdmin: false, displayName: data.displayName });
       return data;
     } catch (error) {
       if (serverResponded) throw error;
       console.warn('Register via server failed, falling back to local storage.', error);
       const users = getLocalUsers();
       if (users.find((u: any) => u.username === username)) throw new Error('نام کاربری تکراری است');
-      persistLocalCredential({ username, password: pass, isAdmin: false });
-      return { username, isAdmin: false, offline: true };
+      persistLocalCredential({ username, password: pass, isAdmin: false, displayName });
+      users.push({ username, password: pass, passwordHash: pass, isAdmin: false, transactions: [], createdAt: new Date().toISOString(), displayName, securityQuestion, securityAnswerHash: securityAnswer });
+      saveLocalUsers(users);
+      return { username, isAdmin: false, offline: true, displayName };
     }
   },
 
@@ -268,7 +289,8 @@ export const API = {
           username: u.username,
           isAdmin: !!u.isAdmin,
           txCount: u.transactions?.length || 0,
-          createdAt: u.createdAt || new Date()
+          createdAt: u.createdAt || new Date(),
+          displayName: u.displayName || u.username
         })),
         offline: true,
         message: 'اتصال به سرور برقرار نیست؛ داده‌های محلی نمایش داده می‌شود و ممکن است ناقص باشد.'
@@ -320,6 +342,46 @@ export const API = {
         user.passwordHash = newPass;
         saveLocalUsers(users);
       }
+    }
+  },
+
+  getSecurityQuestion: async (username: string): Promise<string> => {
+    username = username.toLowerCase();
+    try {
+      const res = await withTimeout(`${BASE_URL}/api/security-question?username=${username}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'دریافت سوال امنیتی ممکن نیست');
+      return data.securityQuestion;
+    } catch (error) {
+      const local = getLocalUsers().find((u: any) => u.username === username);
+      if (local?.securityQuestion) return local.securityQuestion;
+      throw error;
+    }
+  },
+
+  resetPasswordWithSecurityAnswer: async (username: string, securityAnswer: string, newPassword: string) => {
+    username = username.toLowerCase();
+    let serverResponded = false;
+    try {
+      const res = await withTimeout(`${BASE_URL}/api/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, securityAnswer, newPassword })
+      });
+      serverResponded = true;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'بازیابی رمز عبور ناموفق بود');
+      await trySyncLocalUsers({ username, password: newPassword });
+    } catch (error) {
+      if (serverResponded) throw error;
+      console.warn('Reset password via server failed, using local fallback.', error);
+      const users = getLocalUsers();
+      const user = users.find((u: any) => u.username === username);
+      if (!user) throw error;
+      if (user.securityAnswerHash !== securityAnswer) throw error;
+      user.password = newPassword;
+      user.passwordHash = newPassword;
+      saveLocalUsers(users);
     }
   }
 };

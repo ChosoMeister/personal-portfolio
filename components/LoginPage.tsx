@@ -1,19 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, User, ShieldCheck, UserPlus, LogIn, AlertCircle, Zap } from 'lucide-react';
+import { Lock, User, ShieldCheck, UserPlus, LogIn, AlertCircle, Zap, HelpCircle, RefreshCcw } from 'lucide-react';
 import { API } from '../services/api';
 
 interface LoginPageProps {
-  onLoginSuccess: (user: { username: string, isAdmin: boolean }) => void;
+  onLoginSuccess: (user: { username: string, isAdmin: boolean, displayName?: string }) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
+  const [isForgot, setIsForgot] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [securityQuestion, setSecurityQuestion] = useState('');
+  const [securityAnswer, setSecurityAnswer] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
   const [showFastLogin, setShowFastLogin] = useState(false);
+  const [questionLoading, setQuestionLoading] = useState(false);
 
   // اگر بعد از ۵ ثانیه لودینگ تمام نشد، دکمه ورود سریع را نشان بده
   useEffect(() => {
@@ -26,17 +33,51 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     return () => clearTimeout(timer);
   }, [loading]);
 
+  useEffect(() => {
+    if (!isForgot) return;
+    if (!username) {
+      setSecurityQuestion('');
+      return;
+    }
+    const loadQuestion = async () => {
+      setQuestionLoading(true);
+      setError('');
+      try {
+        const question = await API.getSecurityQuestion(username);
+        setSecurityQuestion(question);
+      } catch (err: any) {
+        setSecurityQuestion('');
+        setError(err?.message || 'دریافت سوال امنیتی ممکن نشد');
+      } finally {
+        setQuestionLoading(false);
+      }
+    };
+    loadQuestion();
+  }, [username, isForgot]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     
     setLoading(true);
     setError('');
+    setNotice('');
 
     try {
-      if (isRegister) {
+      if (isForgot) {
+        if (!username) throw new Error('نام کاربری را وارد کنید');
+        if (!securityAnswer || !newPassword) throw new Error('پاسخ و گذرواژه جدید را تکمیل کنید');
+        await API.resetPasswordWithSecurityAnswer(username, securityAnswer, newPassword);
+        setNotice('رمز عبور با موفقیت تغییر کرد. اکنون می‌توانید وارد شوید.');
+        setIsForgot(false);
+        setIsRegister(false);
+        setPassword(newPassword);
+        setNewPassword('');
+        setSecurityAnswer('');
+      } else if (isRegister) {
         if (password.length < 4) throw new Error('رمز عبور باید حداقل ۴ کاراکتر باشد');
-        const user = await API.register(username, password);
+        if (!securityQuestion || !securityAnswer) throw new Error('سوال و پاسخ امنیتی را وارد کنید');
+        const user = await API.register(username, password, displayName || username, securityQuestion, securityAnswer);
         onLoginSuccess(user!);
       } else {
         const user = await API.login(username, password);
@@ -51,7 +92,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleFastLogin = () => {
     // ورود مستقیم با اکانت ادمین پیش‌فرض
-    onLoginSuccess({ username: 'admin', isAdmin: true });
+    onLoginSuccess({ username: 'admin', isAdmin: true, displayName: 'ادمین سیستم' });
   };
 
   return (
@@ -66,7 +107,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               <ShieldCheck size={40} className="text-white" />
             </div>
             <h1 className="text-3xl font-black text-white mb-2">
-              {isRegister ? 'ایجاد حساب' : 'خوش آمدید'}
+              {isForgot ? 'بازیابی رمز عبور' : isRegister ? 'ایجاد حساب' : 'خوش آمدید'}
             </h1>
             <p className="text-slate-400 text-sm font-medium">پرتفولیو هوشمند</p>
           </div>
@@ -87,25 +128,128 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               />
             </div>
 
-            <div className="relative group">
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
-                <Lock size={18} />
+            {isRegister && (
+              <div className="relative group">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                  <UserPlus size={18} />
+                </div>
+                <input
+                  type="text"
+                  placeholder="نام نمایشی در برنامه"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                  dir="rtl"
+                />
               </div>
-              <input
-                type="password"
-                placeholder="رمز عبور"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
-                dir="rtl"
-                required
-              />
-            </div>
+            )}
+
+            {!isForgot && (
+              <div className="relative group">
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                  <Lock size={18} />
+                </div>
+                <input
+                  type="password"
+                  placeholder="رمز عبور"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                  dir="rtl"
+                  required
+                />
+              </div>
+            )}
+
+            {isForgot && (
+              <div className="space-y-3">
+                <div className="relative group">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition-colors">
+                    <HelpCircle size={18} className={questionLoading ? 'animate-pulse' : ''} />
+                  </div>
+                  <input
+                    type="text"
+                    value={securityQuestion || (questionLoading ? 'در حال دریافت...' : '')}
+                    readOnly
+                    placeholder="سوال امنیتی نمایش داده می‌شود"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none text-right opacity-80"
+                  />
+                </div>
+                <div className="relative group">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="پاسخ امنیتی"
+                    value={securityAnswer}
+                    onChange={(e) => setSecurityAnswer(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                    dir="rtl"
+                    required
+                  />
+                </div>
+                <div className="relative group">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    type="password"
+                    placeholder="رمز عبور جدید"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                    dir="rtl"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {isRegister && (
+              <>
+                <div className="relative group">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                    <HelpCircle size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="سوال امنیتی شما"
+                    value={securityQuestion}
+                    onChange={(e) => setSecurityQuestion(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                    dir="rtl"
+                    required
+                  />
+                </div>
+                <div className="relative group">
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="پاسخ امنیتی"
+                    value={securityAnswer}
+                    onChange={(e) => setSecurityAnswer(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pr-12 pl-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600/50 transition-all text-right"
+                    dir="rtl"
+                    required
+                  />
+                </div>
+              </>
+            )}
 
             {error && (
               <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] font-bold py-3 px-4 rounded-xl flex items-center gap-2 animate-shake">
                 <AlertCircle size={14} className="shrink-0" />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {notice && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold py-3 px-4 rounded-xl flex items-center gap-2">
+                <ShieldCheck size={14} className="shrink-0" />
+                <span>{notice}</span>
               </div>
             )}
 
@@ -118,8 +262,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>{isRegister ? 'ثبت‌نام و ورود' : 'ورود به سیستم'}</span>
-                  {isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
+                  <span>{isForgot ? 'بازیابی رمز' : isRegister ? 'ثبت‌نام و ورود' : 'ورود به سیستم'}</span>
+                  {isForgot ? <RefreshCcw size={18} /> : isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
                 </>
               )}
             </button>
@@ -137,10 +281,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
             <button
               type="button"
-              onClick={() => { setIsRegister(!isRegister); setError(''); }}
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setIsForgot(false);
+                setError('');
+                setNotice('');
+                setSecurityQuestion('');
+                setSecurityAnswer('');
+                setNewPassword('');
+              }}
               className="w-full text-slate-400 text-xs font-bold py-2 hover:text-white transition-colors"
             >
               {isRegister ? 'قبلاً حساب داشته‌اید؟ وارد شوید' : 'حساب کاربری ندارید؟ ثبت‌نام کنید'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsForgot(!isForgot);
+                setIsRegister(false);
+                setError('');
+                setNotice('');
+                setSecurityQuestion('');
+                setSecurityAnswer('');
+                setNewPassword('');
+                setPassword('');
+              }}
+              className="w-full text-slate-400 text-xs font-bold py-2 hover:text-white transition-colors"
+            >
+              {isForgot ? 'بازگشت به ورود' : 'رمز عبور را فراموش کرده‌اید؟'}
             </button>
           </form>
         </div>

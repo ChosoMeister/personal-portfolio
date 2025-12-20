@@ -94,9 +94,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-white font-black text-sm">{u.username}</span>
+                        <span className="text-white font-black text-sm">{u.displayName || u.username}</span>
                         {u.isAdmin && <span className="bg-amber-500 text-slate-900 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Admin</span>}
                       </div>
+                      <div className="text-[10px] text-slate-500 font-bold">@{u.username}</div>
                       <div className="flex items-center gap-3 mt-1.5">
                         <div className="flex items-center gap-1 text-slate-500 text-[10px] font-bold">
                           <Clock size={12} />

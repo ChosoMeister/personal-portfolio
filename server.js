@@ -183,14 +183,29 @@ const refreshAdmin = async () => {
             username: ADMIN_USER,
             passwordHash: ADMIN_PASS,
             isAdmin: true,
+            displayName: 'ادمین سیستم',
             createdAt: new Date(),
-            transactions: []
+            transactions: [],
+            securityQuestion: 'کلمه عبور پیش‌فرض ادمین؟',
+            securityAnswerHash: ADMIN_PASS
         });
         changed = true;
     } else {
         if (users[adminIdx].passwordHash !== ADMIN_PASS || !users[adminIdx].isAdmin) {
             users[adminIdx].passwordHash = ADMIN_PASS;
             users[adminIdx].isAdmin = true;
+            changed = true;
+        }
+        if (!users[adminIdx].displayName) {
+            users[adminIdx].displayName = 'ادمین سیستم';
+            changed = true;
+        }
+        if (!users[adminIdx].securityQuestion) {
+            users[adminIdx].securityQuestion = 'کلمه عبور پیش‌فرض ادمین؟';
+            changed = true;
+        }
+        if (!users[adminIdx].securityAnswerHash) {
+            users[adminIdx].securityAnswerHash = ADMIN_PASS;
             changed = true;
         }
     }
@@ -219,23 +234,60 @@ app.post('/api/login', (req, res) => {
     username = username.toLowerCase();
     const users = getUsers();
     const user = users.find(u => u.username === username && u.passwordHash === password);
-    if (user) return res.json({ username: user.username, isAdmin: !!user.isAdmin });
+    if (user) return res.json({ username: user.username, isAdmin: !!user.isAdmin, displayName: user.displayName || user.username });
     res.status(401).json({ message: 'نام کاربری یا رمز عبور اشتباه است' });
 });
 
 app.post('/api/register', async (req, res) => {
-    let { username, password } = req.body;
+    let { username, password, displayName, securityQuestion, securityAnswer } = req.body;
     username = username.toLowerCase();
     let users = [...getUsers()];
     if (users.find(u => u.username === username)) return res.status(400).json({ message: 'نام کاربری تکراری است' });
-    const newUser = { username, passwordHash: password, createdAt: new Date(), transactions: [], isAdmin: false };
+    if (!securityQuestion || !securityAnswer) return res.status(400).json({ message: 'سوال و پاسخ امنیتی اجباری است' });
+    const newUser = {
+        username,
+        passwordHash: password,
+        displayName: displayName || username,
+        createdAt: new Date(),
+        transactions: [],
+        isAdmin: false,
+        securityQuestion,
+        securityAnswerHash: securityAnswer
+    };
     users.push(newUser);
     await saveUsers(users);
-    res.json({ username: newUser.username, isAdmin: false });
+    res.json({ username: newUser.username, isAdmin: false, displayName: newUser.displayName });
+});
+
+app.get('/api/security-question', (req, res) => {
+    const username = req.query.username ? req.query.username.toLowerCase() : '';
+    const user = getUsers().find(u => u.username === username);
+    if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
+    res.json({ securityQuestion: user.securityQuestion || 'سوال امنیتی ثبت نشده است' });
+});
+
+app.post('/api/reset-password', async (req, res) => {
+    let { username, securityAnswer, newPassword } = req.body;
+    username = username.toLowerCase();
+    let users = [...getUsers()];
+    const userIndex = users.findIndex(u => u.username === username);
+    if (userIndex === -1) return res.status(404).json({ message: 'کاربر یافت نشد' });
+    const user = users[userIndex];
+    if (!user.securityAnswerHash) return res.status(400).json({ message: 'سوال امنیتی ثبت نشده است' });
+    if (user.securityAnswerHash !== securityAnswer) return res.status(401).json({ message: 'پاسخ امنیتی اشتباه است' });
+    users[userIndex] = { ...user, passwordHash: newPassword };
+    await saveUsers(users);
+    res.json({ success: true });
 });
 
 app.get('/api/users', (req, res) => {
-    res.json(getUsers().map(u => ({ username: u.username, createdAt: u.createdAt, txCount: u.transactions.length, isAdmin: !!u.isAdmin })));
+    res.json(getUsers().map(u => ({
+        username: u.username,
+        createdAt: u.createdAt,
+        txCount: u.transactions.length,
+        isAdmin: !!u.isAdmin,
+        displayName: u.displayName || u.username
+    })));
 });
 
 app.post('/api/users/delete', async (req, res) => {
@@ -243,6 +295,17 @@ app.post('/api/users/delete', async (req, res) => {
     username = username.toLowerCase();
     if (username === ADMIN_USER) return res.status(400).json({ message: 'حذف ادمین غیرمجاز است' });
     await saveUsers(getUsers().filter(u => u.username !== username));
+    res.json({ success: true });
+});
+
+app.post('/api/users/update-pass', async (req, res) => {
+    let { username, newPassword } = req.body;
+    username = username.toLowerCase();
+    let users = [...getUsers()];
+    const userIndex = users.findIndex(u => u.username === username);
+    if (userIndex === -1) return res.status(404).json({ message: 'کاربر یافت نشد' });
+    users[userIndex] = { ...users[userIndex], passwordHash: newPassword };
+    await saveUsers(users);
     res.json({ success: true });
 });
 
