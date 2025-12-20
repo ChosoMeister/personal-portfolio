@@ -87,6 +87,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       console.error("Login component error:", err);
       setError(err.message || 'نام کاربری یا رمز عبور اشتباه است');
       setLoading(false);
+    } finally {
+      // اطمینان از قطع شدن لودینگ در همه سناریوها (به‌خصوص بعد از تغییر رمز)
+      setLoading(false);
     }
   };
 

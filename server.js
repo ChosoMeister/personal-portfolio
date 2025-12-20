@@ -18,6 +18,7 @@ const DATA_DIR = process.env.NODE_ENV === 'production' ? '/app/data' : path.join
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json');
 const FALLBACK_PRICES = { usdToToman: 70000, eurToToman: 74000, gold18ToToman: 4700000 };
+const ONE_HOUR_MS = 60 * 60 * 1000;
 
 // Memory Cache
 let usersCache = [];
@@ -49,6 +50,30 @@ try {
 } catch (e) {
     console.error('Error loading prices:', e);
     pricesCache = null;
+}
+
+if (!pricesCache) {
+    pricesCache = {
+        usdToToman: FALLBACK_PRICES.usdToToman,
+        eurToToman: FALLBACK_PRICES.eurToToman,
+        gold18ToToman: FALLBACK_PRICES.gold18ToToman,
+        fiatPricesToman: {
+            USD: FALLBACK_PRICES.usdToToman,
+            EUR: FALLBACK_PRICES.eurToToman,
+        },
+        cryptoPricesToman: {
+            USDT: FALLBACK_PRICES.usdToToman,
+        },
+        goldPricesToman: {
+            GOLD18: FALLBACK_PRICES.gold18ToToman,
+            '18AYAR': FALLBACK_PRICES.gold18ToToman,
+        },
+        fetchedAt: Date.now(),
+    };
+
+    fs.promises.writeFile(PRICES_FILE, JSON.stringify(pricesCache)).catch((err) => {
+        console.error('Error initializing default prices:', err);
+    });
 }
 
 const PERSIAN_DIGITS = {
@@ -356,6 +381,17 @@ app.get('/api/prices', (req, res) => {
 
 app.get('/api/prices/refresh', async (req, res) => {
     try {
+        const now = Date.now();
+        if (pricesCache?.fetchedAt && now - pricesCache.fetchedAt < ONE_HOUR_MS) {
+            return res.json({
+                success: true,
+                data: pricesCache,
+                skipped: true,
+                nextAllowedAt: pricesCache.fetchedAt + ONE_HOUR_MS,
+                message: 'آخرین بروزرسانی کمتر از یک ساعت پیش انجام شده است',
+            });
+        }
+
         const [fiatPrices, cryptoPrices] = await Promise.all([
             fetchCurrencyBoard(),
             fetchCryptoBoard()
@@ -393,6 +429,7 @@ app.get('/api/prices/refresh', async (req, res) => {
                 { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
                 { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
             ],
+            nextAllowedAt: priceData.fetchedAt + ONE_HOUR_MS,
         });
     } catch (error) {
         console.error('Error refreshing prices:', error);

@@ -34,6 +34,8 @@ export default function App() {
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [priceUpdateMessage, setPriceUpdateMessage] = useState<string>('');
+  const [nextPriceAllowedAt, setNextPriceAllowedAt] = useState<number | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [theme, setTheme] = useState<ThemeOption>(() => {
     if (typeof window === 'undefined') return 'light';
@@ -110,6 +112,16 @@ export default function App() {
       setPrices(result.data);
       const nextSources = result.sources.length ? result.sources : fallbackSources;
       setSources(nextSources);
+      setNextPriceAllowedAt(result.nextAllowedAt || null);
+      if (result.skipped) {
+        const nextTime = result.nextAllowedAt ? new Date(result.nextAllowedAt).toLocaleTimeString('fa-IR') : '';
+        setPriceUpdateMessage(result.message || (nextTime ? `بروزرسانی بعد از ${nextTime}` : 'بروزرسانی کمتر از یک ساعت مجاز نیست'));
+      } else {
+        setPriceUpdateMessage('');
+      }
+    } catch (error) {
+      console.error('Price update failed:', error);
+      setPriceUpdateMessage('خطا در بروزرسانی قیمت‌ها');
     } finally {
       setIsPriceUpdating(false);
     }
@@ -262,15 +274,23 @@ export default function App() {
                     <UserCircle size={18} />
                   </button>
                 )}
-                <button
-                  onClick={handlePriceUpdate}
-                  disabled={isPriceUpdating}
-                  className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
-                >
-                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
-                  <Sparkles size={14} className={isPriceUpdating ? "animate-spin" : ""} />
-                  <span>بروزرسانی هوشمند</span>
-                </button>
+                <div className="flex flex-col items-end gap-1">
+                  <button
+                    onClick={handlePriceUpdate}
+                    disabled={isPriceUpdating}
+                    className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
+                  >
+                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
+                    <Sparkles size={14} className={isPriceUpdating ? "animate-spin" : ""} />
+                    <span>بروزرسانی هوشمند</span>
+                  </button>
+                  {priceUpdateMessage && (
+                    <span className="text-[10px] text-amber-300 font-bold text-right leading-tight">
+                      {priceUpdateMessage}
+                      {nextPriceAllowedAt ? ` • ${new Date(nextPriceAllowedAt).toLocaleTimeString('fa-IR')}` : ''}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -406,6 +426,7 @@ export default function App() {
           isOpen={isSettingsDrawerOpen}
           onClose={() => setIsSettingsDrawerOpen(false)}
           displayName={displayName || user.username}
+          username={user.username}
           onDisplayNameChange={handleDisplayNameChange}
           theme={theme}
           onThemeChange={setTheme}

@@ -6,35 +6,38 @@ import * as AuthService from '../services/authService';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  username?: string;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [currentPass, setCurrentPass] = useState('');
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, username = 'admin' }) => {
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, msg: string }>({ type: null, msg: '' });
+  const [savingPassword, setSavingPassword] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass !== confirmPass) {
       setStatus({ type: 'error', msg: 'تکرار رمز عبور مطابقت ندارد' });
       return;
     }
 
-    const result = AuthService.changePassword(currentPass, newPass);
-    if (result.success) {
-      setStatus({ type: 'success', msg: result.message });
+    try {
+      setSavingPassword(true);
+      await AuthService.updatePassword(username, newPass);
+      setStatus({ type: 'success', msg: 'رمز عبور با موفقیت بروزرسانی شد' });
       setTimeout(() => {
         onClose();
         setStatus({ type: null, msg: '' });
-        setCurrentPass('');
         setNewPass('');
         setConfirmPass('');
       }, 1500);
-    } else {
-      setStatus({ type: 'error', msg: result.message });
+    } catch (error: any) {
+      setStatus({ type: 'error', msg: error?.message || 'خطا در بروزرسانی رمز عبور' });
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -54,21 +57,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         <form onSubmit={handleUpdatePassword} className="p-8 space-y-5">
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">رمز عبور فعلی</label>
-            <div className="relative">
-              <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
-              <input 
-                type="password" 
-                value={currentPass}
-                onChange={(e) => setCurrentPass(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pr-12 pl-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <label className="text-xs font-black text-gray-400 uppercase tracking-widest px-1">رمز عبور جدید</label>
             <div className="relative">
@@ -110,9 +98,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
           <button 
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black py-4 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all mt-4"
+            disabled={savingPassword}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black py-4 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all mt-4 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            به‌روزرسانی رمز عبور
+            {savingPassword ? 'در حال ذخیره...' : 'به‌روزرسانی رمز عبور'}
           </button>
         </form>
       </div>

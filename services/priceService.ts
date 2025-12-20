@@ -73,7 +73,7 @@ export const fetchPrices = async (): Promise<PriceData> => {
   return normalizePriceData(stored);
 };
 
-export const fetchLivePrices = async (): Promise<{ data: PriceData, sources: {title: string, uri: string}[] }> => {
+export const fetchLivePrices = async (): Promise<{ data: PriceData, sources: {title: string, uri: string}[], skipped?: boolean, nextAllowedAt?: number, message?: string }> => {
   try {
     const response = await API.refreshLivePrices();
     const normalized = normalizePriceData(response?.data);
@@ -81,6 +81,9 @@ export const fetchLivePrices = async (): Promise<{ data: PriceData, sources: {ti
     return {
       data: normalized,
       sources: response?.sources || [],
+      skipped: response?.skipped,
+      nextAllowedAt: response?.nextAllowedAt,
+      message: response?.message,
     };
   } catch (error) {
     console.error("Live price fetch error:", error);

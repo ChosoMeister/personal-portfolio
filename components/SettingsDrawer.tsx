@@ -8,6 +8,7 @@ interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   displayName: string;
+  username: string;
   onDisplayNameChange: (name: string) => void;
   theme: ThemeOption;
   onThemeChange: (theme: ThemeOption) => void;
@@ -18,16 +19,17 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   isOpen,
   onClose,
   displayName,
+  username,
   onDisplayNameChange,
   theme,
   onThemeChange,
   onLogout,
 }) => {
-  const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [nameValue, setNameValue] = useState(displayName);
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; msg: string }>({ type: null, msg: '' });
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     setNameValue(displayName);
@@ -35,7 +37,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
   useEffect(() => {
     if (!isOpen) {
-      setCurrentPass('');
       setNewPass('');
       setConfirmPass('');
       setStatus({ type: null, msg: '' });
@@ -44,25 +45,27 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass !== confirmPass) {
       setStatus({ type: 'error', msg: 'تکرار رمز عبور مطابقت ندارد' });
       return;
     }
 
-    const result = AuthService.changePassword(currentPass, newPass);
-    if (result.success) {
-      setStatus({ type: 'success', msg: result.message });
+    try {
+      setSavingPassword(true);
+      await AuthService.updatePassword(username, newPass);
+      setStatus({ type: 'success', msg: 'رمز عبور با موفقیت بروزرسانی شد' });
       setTimeout(() => {
         onClose();
         setStatus({ type: null, msg: '' });
-        setCurrentPass('');
         setNewPass('');
         setConfirmPass('');
       }, 1200);
-    } else {
-      setStatus({ type: 'error', msg: result.message });
+    } catch (error: any) {
+      setStatus({ type: 'error', msg: error?.message || 'خطا در بروزرسانی رمز عبور' });
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -177,17 +180,6 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-[color:var(--text-muted)] px-1">گذرواژه فعلی</label>
-                  <input
-                    type="password"
-                    value={currentPass}
-                    onChange={(e) => setCurrentPass(e.target.value)}
-                    className="w-full rounded-2xl border border-[color:var(--border-color)] bg-[var(--muted-surface)] px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
                   <label className="text-xs font-black text-[color:var(--text-muted)] px-1">گذرواژه جدید</label>
                   <input
                     type="password"
@@ -227,9 +219,10 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="submit"
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+                  disabled={savingPassword}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl shadow-lg shadow-emerald-600/20 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  به‌روزرسانی گذرواژه
+                  {savingPassword ? 'در حال ذخیره...' : 'به‌روزرسانی گذرواژه'}
                 </button>
                 <button
                   type="button"
