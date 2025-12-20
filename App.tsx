@@ -272,7 +272,7 @@ export default function App() {
       <Suspense fallback={<div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
         {tab === 'overview' && (
           <div className="p-4 space-y-4 animate-in fade-in duration-500 pb-20">
-            <div className="flex justify-between items-center mb-2 px-1">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-2 px-1">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
                   <Shield size={16} className="text-white" />
@@ -287,34 +287,42 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsSettingsDrawerOpen(true)}
-                  className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
-                  aria-label="تنظیمات حساب"
-                >
-                  <UserCircle size={18} />
-                </button>
-                {user.isAdmin && (
-                  <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+                <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                  <button
+                    onClick={() => setIsSettingsDrawerOpen(true)}
+                    className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
+                    aria-label="تنظیمات حساب"
+                  >
                     <UserCircle size={18} />
                   </button>
-                )}
-                <div className="flex flex-col items-end gap-1">
+                  {user.isAdmin && (
+                    <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}>
+                      <UserCircle size={18} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1 items-stretch sm:items-end w-full sm:w-auto">
                   <button
                     onClick={handlePriceUpdate}
                     disabled={isPriceUpdating}
-                    className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
+                    className={`relative overflow-hidden group flex items-center justify-center sm:justify-between gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
                   >
                     <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
                     <Sparkles size={14} className={isPriceUpdating ? "animate-spin" : ""} />
                     <span>بروزرسانی هوشمند</span>
                   </button>
                   {priceUpdateMessage && (
-                    <span className="text-[10px] text-amber-300 font-bold text-right leading-tight">
-                      {priceUpdateMessage}
-                      {nextPriceAllowedAt ? ` • ${new Date(nextPriceAllowedAt).toLocaleTimeString('fa-IR')}` : ''}
-                    </span>
+                    <div className="w-full sm:min-w-[260px] sm:max-w-[320px]">
+                      <div className="px-3 py-2 rounded-xl border border-amber-200/60 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-500/10 text-amber-700 dark:text-amber-200 text-[10px] font-bold text-right leading-relaxed shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="flex-1 leading-snug">{priceUpdateMessage}</span>
+                          {nextPriceAllowedAt && (
+                            <span className="shrink-0 font-black text-[9px]">{new Date(nextPriceAllowedAt).toLocaleTimeString('fa-IR')}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
