@@ -286,7 +286,11 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                 {portfolioSummary.assets.length > 0 ? (
                     <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={portfolioSummary.assets.slice(0, 8)} layout="vertical">
+                            <BarChart
+                                data={portfolioSummary.assets.slice(0, 8)}
+                                layout="vertical"
+                                margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+                            >
                                 <XAxis
                                     type="number"
                                     axisLine={false}
@@ -300,10 +304,11 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fontSize: 10, fill: 'var(--text-primary)' }}
-                                    width={110}
+                                    width={90}
                                     orientation="right"
                                 />
                                 <Tooltip
+                                    cursor={false}
                                     contentStyle={{
                                         background: 'var(--card-bg)',
                                         border: '1px solid var(--border-color)',
