@@ -254,6 +254,83 @@ const fetchGoldBoard = async (usdRate = FALLBACK_PRICES.usdToToman) => {
     return prices;
 };
 
+// Backup source: tgju.org for gold/coin prices
+const fetchTgjuGold = async () => {
+    try {
+        const res = await fetch('https://www.tgju.org/profile/geram18', {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+        const $ = cheerio.load(html);
+
+        const prices = {};
+        // Try to get price from the page
+        const priceText = $('[data-col="info.last_trade.PDrCotVal"]').text() ||
+            $('.info-price').first().text();
+        const price = normalizeNumber(priceText);
+        if (price) prices.GOLD18 = price;
+
+        return Object.keys(prices).length > 0 ? prices : null;
+    } catch (e) {
+        console.log('tgju.org fetch failed:', e.message);
+        return null;
+    }
+};
+
+// Backup source: navasan.net for currency rates
+const fetchNavasanCurrency = async () => {
+    try {
+        const res = await fetch('https://www.navasan.tech/api/latest-rate/', {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+
+        const prices = {};
+        // Map navasan symbols to our symbols
+        if (data.usd?.value) prices.USD = normalizeNumber(data.usd.value);
+        if (data.eur?.value) prices.EUR = normalizeNumber(data.eur.value);
+        if (data.aed?.value) prices.AED = normalizeNumber(data.aed.value);
+        if (data.try?.value) prices.TRY = normalizeNumber(data.try.value);
+
+        return Object.keys(prices).length > 0 ? prices : null;
+    } catch (e) {
+        console.log('navasan.net fetch failed:', e.message);
+        return null;
+    }
+};
+
+// Multi-source fetcher with fallback
+const fetchWithFallback = async (primaryFn, backupFns = [], category = 'unknown') => {
+    // Try primary source first
+    try {
+        const result = await primaryFn();
+        if (result && Object.keys(result).length > 0) {
+            console.log(`[Prices] ${category}: fetched from primary source`);
+            return { data: result, source: 'primary' };
+        }
+    } catch (e) {
+        console.log(`[Prices] ${category}: primary failed - ${e.message}`);
+    }
+
+    // Try backup sources in order
+    for (let i = 0; i < backupFns.length; i++) {
+        try {
+            const result = await backupFns[i]();
+            if (result && Object.keys(result).length > 0) {
+                console.log(`[Prices] ${category}: fetched from backup source ${i + 1}`);
+                return { data: result, source: `backup${i + 1}` };
+            }
+        } catch (e) {
+            console.log(`[Prices] ${category}: backup ${i + 1} failed - ${e.message}`);
+        }
+    }
+
+    console.log(`[Prices] ${category}: all sources failed`);
+    return { data: {}, source: 'none' };
+};
+
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
     credentials: true
@@ -559,12 +636,37 @@ app.get('/api/prices/refresh', async (req, res) => {
             });
         }
 
-        const [fiatPrices, cryptoPrices] = await Promise.all([
-            fetchCurrencyBoard(),
-            fetchCryptoBoard()
-        ]);
+        const sources = [];
+
+        // Fetch currencies with fallback
+        const fiatResult = await fetchWithFallback(
+            fetchCurrencyBoard,
+            [fetchNavasanCurrency],
+            'currencies'
+        );
+        const fiatPrices = fiatResult.data;
+        sources.push({ type: 'fiat', source: fiatResult.source });
+
+        // Fetch crypto (no fallback needed, alanchand is reliable for this)
+        let cryptoPrices = {};
+        try {
+            cryptoPrices = await fetchCryptoBoard();
+            sources.push({ type: 'crypto', source: 'alanchand' });
+        } catch (e) {
+            console.log('[Prices] crypto fetch failed:', e.message);
+            sources.push({ type: 'crypto', source: 'none' });
+        }
+
         const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
-        const goldPrices = await fetchGoldBoard(usdRate);
+
+        // Fetch gold with fallback
+        const goldResult = await fetchWithFallback(
+            () => fetchGoldBoard(usdRate),
+            [fetchTgjuGold],
+            'gold'
+        );
+        const goldPrices = goldResult.data;
+        sources.push({ type: 'gold', source: goldResult.source });
 
         const priceData = {
             usdToToman: usdRate,
@@ -583,19 +685,32 @@ app.get('/api/prices/refresh', async (req, res) => {
         }
 
         pricesCache = priceData;
+
+        // Save to prices file
         try {
             await fs.promises.writeFile(PRICES_FILE, JSON.stringify(priceData));
         } catch (err) {
             console.error('Error persisting refreshed prices:', err);
         }
 
+        // Auto-save today's prices to historical_prices
+        const today = new Date().toISOString().split('T')[0];
+        try {
+            const allPrices = { ...fiatPrices, ...goldPrices, ...cryptoPrices };
+            for (const [symbol, price] of Object.entries(allPrices)) {
+                if (price && typeof price === 'number') {
+                    db.saveHistoricalPrice(symbol, today, price, 'live');
+                }
+            }
+            console.log(`[Prices] Saved ${Object.keys(allPrices).length} prices to historical for ${today}`);
+        } catch (err) {
+            console.error('Error saving historical prices:', err);
+        }
+
         res.json({
             success: true,
             data: priceData,
-            sources: [
-                { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
-                { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
-            ],
+            sources,
             nextAllowedAt: priceData.fetchedAt + ONE_HOUR_MS,
         });
     } catch (error) {
