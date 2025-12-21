@@ -299,8 +299,8 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fontSize: 11, fill: 'var(--text-primary)' }}
-                                    width={140}
+                                    tick={{ fontSize: 10, fill: 'var(--text-primary)' }}
+                                    width={110}
                                     orientation="right"
                                 />
                                 <Tooltip

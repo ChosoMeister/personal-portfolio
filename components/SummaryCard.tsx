@@ -17,7 +17,7 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
   const isProfit = summary.totalPnlToman >= 0;
 
   return (
-    <div className="relative overflow-hidden mb-4 rounded-[32px] border border-[var(--border-color)] shadow-2xl transition-colors duration-300">
+    <div className="relative overflow-hidden mb-4 rounded-[32px] border border-[var(--border-color)] transition-colors duration-300">
       {/* Refined subtle background */}
       <div className="absolute inset-0 bg-[var(--card-bg)] transition-colors duration-300"></div>
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[var(--accent-color)]/10 blur-[120px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
