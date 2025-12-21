@@ -55,7 +55,7 @@ export default function App() {
     const stored = localStorage.getItem('theme') as ThemeOption | null;
     return stored || 'system';
   });
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark' | 'amoled' | 'sunset' | 'ocean' | 'forest'>('light');
   const fallbackSources = [
     { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
     { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
@@ -87,11 +87,27 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const allThemeClasses = ['dark', 'amoled', 'sunset', 'ocean', 'forest'];
 
     const applyTheme = () => {
-      const nextTheme = theme === 'system' ? (mediaQuery.matches ? 'dark' : 'light') : theme;
+      let nextTheme: typeof resolvedTheme;
+      if (theme === 'system') {
+        nextTheme = mediaQuery.matches ? 'dark' : 'light';
+      } else if (theme === 'light') {
+        nextTheme = 'light';
+      } else {
+        nextTheme = theme;
+      }
       setResolvedTheme(nextTheme);
-      document.body.classList.toggle('dark', nextTheme === 'dark');
+
+      // Remove all theme classes first
+      allThemeClasses.forEach(cls => document.body.classList.remove(cls));
+
+      // Add appropriate class for non-light themes
+      if (nextTheme !== 'light') {
+        document.body.classList.add(nextTheme);
+      }
+
       localStorage.setItem('theme', theme);
     };
 
@@ -253,7 +269,7 @@ export default function App() {
   // The original code imported it. I will define it locally to avoid import issues with lazy loading if the file isn't split cleanly.
   // Actually, 'ThemeOption' is just a type. We can likely import it safely.
   // Ideally we should move types to types.ts but I will stick to minimal changes.
-  type ThemeOption = 'light' | 'dark' | 'system';
+  type ThemeOption = 'light' | 'dark' | 'system' | 'amoled' | 'sunset' | 'ocean' | 'forest';
 
   if (!sessionChecked) return null;
   if (!user) return <LoginPage onLoginSuccess={setUser} />;

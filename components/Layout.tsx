@@ -3,7 +3,7 @@ import { NetworkStatus } from './NetworkStatus';
 
 interface LayoutProps {
   children: React.ReactNode;
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'amoled' | 'sunset' | 'ocean' | 'forest';
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, theme }) => {

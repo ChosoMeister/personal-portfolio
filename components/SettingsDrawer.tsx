@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, UserCircle, Palette, Moon, SunMedium, Laptop2, Lock, CheckCircle2, AlertCircle, LogOut } from 'lucide-react';
 import * as AuthService from '../services/authService';
 
-export type ThemeOption = 'light' | 'dark' | 'system';
+export type ThemeOption = 'light' | 'dark' | 'system' | 'amoled' | 'sunset' | 'ocean' | 'forest';
 
 interface SettingsDrawerProps {
   isOpen: boolean;
@@ -151,8 +151,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     type="button"
                     onClick={() => onThemeChange(option.key as ThemeOption)}
                     className={`flex flex-col gap-2 border rounded-2xl p-3 text-right transition-all ${theme === option.key
-                        ? 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg'
-                        : 'border-[color:var(--border-color)] bg-[var(--muted-surface)]/50'
+                      ? 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg'
+                      : 'border-[color:var(--border-color)] bg-[var(--muted-surface)]/50'
                       }`}
                   >
                     {/* Mini Preview Card */}
@@ -223,8 +223,8 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               {status.type && (
                 <div
                   className={`p-4 rounded-2xl flex items-center gap-3 border ${status.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                      : 'bg-rose-50 text-rose-700 border-rose-100'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                    : 'bg-rose-50 text-rose-700 border-rose-100'
                     }`}
                 >
                   {status.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}

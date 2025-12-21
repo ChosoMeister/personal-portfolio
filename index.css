@@ -124,6 +124,50 @@ body.dark .glass-strong {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/* Glass styles for AMOLED theme */
+body.amoled .glass {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+body.amoled .glass-strong {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+/* Glass styles for Sunset theme */
+body.sunset .glass {
+  background: rgba(45, 19, 24, 0.6);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+body.sunset .glass-strong {
+  background: rgba(45, 19, 24, 0.75);
+  border: 1px solid rgba(249, 115, 22, 0.15);
+}
+
+/* Glass styles for Ocean theme */
+body.ocean .glass {
+  background: rgba(13, 31, 45, 0.6);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+body.ocean .glass-strong {
+  background: rgba(13, 31, 45, 0.75);
+  border: 1px solid rgba(6, 182, 212, 0.15);
+}
+
+/* Glass styles for Forest theme */
+body.forest .glass {
+  background: rgba(13, 31, 18, 0.6);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+body.forest .glass-strong {
+  background: rgba(13, 31, 18, 0.75);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+}
+
 /* Animated Gradients */
 @keyframes gradient-shift {
 
@@ -170,6 +214,13 @@ body.dark .glass-strong {
 
 body.dark .hover-lift:hover {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+body.amoled .hover-lift:hover,
+body.sunset .hover-lift:hover,
+body.ocean .hover-lift:hover,
+body.forest .hover-lift:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 }
 
 .hover-glow:hover {
