@@ -300,7 +300,8 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fontSize: 11, fill: 'var(--text-primary)' }}
-                                    width={100}
+                                    width={140}
+                                    orientation="right"
                                 />
                                 <Tooltip
                                     contentStyle={{
