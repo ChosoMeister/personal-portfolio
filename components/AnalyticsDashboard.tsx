@@ -1,7 +1,7 @@
 import React, { useState, useMemo, memo } from 'react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Cell, Treemap
+    PieChart, Pie, Cell
 } from 'recharts';
 import { TrendingUp, TrendingDown, Calendar, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
 import { Transaction, PortfolioSummary, AssetSummary } from '../types';
@@ -284,48 +284,54 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                     توزیع دارایی‌ها
                 </h3>
                 {portfolioSummary.assets.length > 0 ? (
-                    <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                                data={portfolioSummary.assets.slice(0, 8)}
-                                layout="vertical"
-                                margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
-                            >
-                                <XAxis
-                                    type="number"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-                                    tickFormatter={(val) => `${val.toFixed(0)}%`}
-                                />
-                                <YAxis
-                                    type="category"
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 10, fill: 'var(--text-primary)' }}
-                                    width={100}
-                                />
-                                <Tooltip
-                                    cursor={false}
-                                    contentStyle={{
-                                        background: 'var(--card-bg)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: '12px',
-                                        fontSize: '12px',
-                                        color: 'var(--text-primary)'
-                                    }}
-                                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
-                                    itemStyle={{ color: 'var(--text-muted)' }}
-                                    formatter={(value: number) => [`${value.toFixed(1)}%`, 'سهم']}
-                                />
-                                <Bar dataKey="allocationPercent" radius={[0, 8, 8, 0]}>
-                                    {portfolioSummary.assets.slice(0, 8).map((_, idx) => (
-                                        <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <div className="flex items-center">
+                        <div className="w-1/2 h-[200px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={portfolioSummary.assets.slice(0, 8)}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={50}
+                                        outerRadius={80}
+                                        paddingAngle={3}
+                                        dataKey="allocationPercent"
+                                        stroke="none"
+                                        animationBegin={0}
+                                        animationDuration={1000}
+                                        animationEasing="ease-out"
+                                    >
+                                        {portfolioSummary.assets.slice(0, 8).map((_, idx) => (
+                                            <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{
+                                            background: 'var(--card-bg)',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: '12px',
+                                            fontSize: '12px',
+                                            color: 'var(--text-primary)'
+                                        }}
+                                        formatter={(value: number, name: string, props: any) => [
+                                            `${value.toFixed(1)}%`,
+                                            props.payload.name
+                                        ]}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="w-1/2 space-y-2 pr-4">
+                            {portfolioSummary.assets.slice(0, 6).map((asset, index) => (
+                                <div key={index} className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                                        <span className="text-[var(--text-primary)] font-bold truncate max-w-[100px]">{asset.name}</span>
+                                    </div>
+                                    <span className="font-black text-[var(--text-muted)]" dir="ltr">{Math.round(asset.allocationPercent)}%</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : (
                     <div className="h-40 flex items-center justify-center text-[var(--text-muted)] text-sm">
