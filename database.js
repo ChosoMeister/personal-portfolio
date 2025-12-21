@@ -41,8 +41,21 @@ db.exec(`
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER NOT NULL,
+        totalValueToman REAL NOT NULL,
+        totalCostBasisToman REAL NOT NULL,
+        snapshotDate TEXT NOT NULL,
+        createdAt TEXT DEFAULT (datetime('now')),
+        UNIQUE(userId, snapshotDate),
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_transactions_userId ON transactions(userId);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_snapshots_userId ON portfolio_snapshots(userId);
+    CREATE INDEX IF NOT EXISTS idx_snapshots_date ON portfolio_snapshots(snapshotDate);
 `);
 
 // Prepared statements for better performance
@@ -77,6 +90,36 @@ const stmts = {
     deleteTransaction: db.prepare('DELETE FROM transactions WHERE id = ?'),
     deleteTransactionsByUserId: db.prepare('DELETE FROM transactions WHERE userId = ?'),
     countTransactionsByUserId: db.prepare('SELECT COUNT(*) as count FROM transactions WHERE userId = ?'),
+
+    // Snapshot queries
+    getSnapshotsByUserId: db.prepare(`
+        SELECT * FROM portfolio_snapshots 
+        WHERE userId = ? 
+        ORDER BY snapshotDate ASC
+    `),
+    getSnapshotsByDateRange: db.prepare(`
+        SELECT * FROM portfolio_snapshots 
+        WHERE userId = ? AND snapshotDate >= ? AND snapshotDate <= ?
+        ORDER BY snapshotDate ASC
+    `),
+    getSnapshotByDate: db.prepare(`
+        SELECT * FROM portfolio_snapshots 
+        WHERE userId = ? AND snapshotDate = ?
+    `),
+    saveSnapshot: db.prepare(`
+        INSERT INTO portfolio_snapshots (userId, totalValueToman, totalCostBasisToman, snapshotDate)
+        VALUES (@userId, @totalValueToman, @totalCostBasisToman, @snapshotDate)
+        ON CONFLICT(userId, snapshotDate) DO UPDATE SET
+        totalValueToman = @totalValueToman,
+        totalCostBasisToman = @totalCostBasisToman
+    `),
+    getLatestSnapshot: db.prepare(`
+        SELECT * FROM portfolio_snapshots 
+        WHERE userId = ? 
+        ORDER BY snapshotDate DESC 
+        LIMIT 1
+    `),
+    deleteSnapshotsByUserId: db.prepare('DELETE FROM portfolio_snapshots WHERE userId = ?'),
 };
 
 // Helper functions
@@ -109,7 +152,7 @@ export const createUser = (userData) => {
 export const updateUser = (username, updates) => {
     const user = getUser(username);
     if (!user) return false;
-    
+
     stmts.updateUser.run({
         username: username.toLowerCase(),
         passwordHash: updates.passwordHash ?? user.passwordHash,
@@ -129,7 +172,7 @@ export const updateUserPassword = (username, newPasswordHash) => {
 export const deleteUser = (username) => {
     const user = getUser(username);
     if (!user) return false;
-    
+
     // Delete user's transactions first (cascade doesn't work in all SQLite versions)
     stmts.deleteTransactionsByUserId.run(user.id);
     stmts.deleteUser.run(username.toLowerCase());
@@ -139,7 +182,7 @@ export const deleteUser = (username) => {
 export const getTransactions = (username) => {
     const user = getUser(username);
     if (!user) return [];
-    
+
     const transactions = stmts.getTransactionsByUserId.all(user.id);
     return transactions.map(tx => ({
         id: tx.id,
@@ -156,9 +199,9 @@ export const getTransactions = (username) => {
 export const saveTransaction = (username, transaction) => {
     const user = getUser(username);
     if (!user) return false;
-    
+
     const existing = stmts.getTransactionById.get(transaction.id);
-    
+
     if (existing) {
         stmts.updateTransaction.run({
             id: transaction.id,
@@ -191,10 +234,102 @@ export const deleteTransaction = (txId) => {
     return result.changes > 0;
 };
 
+// Portfolio snapshot functions
+export const savePortfolioSnapshot = (username, totalValueToman, totalCostBasisToman) => {
+    const user = getUser(username);
+    if (!user) return false;
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    stmts.saveSnapshot.run({
+        userId: user.id,
+        totalValueToman,
+        totalCostBasisToman,
+        snapshotDate: today
+    });
+    return true;
+};
+
+export const getPortfolioSnapshots = (username, startDate = null, endDate = null) => {
+    const user = getUser(username);
+    if (!user) return [];
+
+    if (startDate && endDate) {
+        return stmts.getSnapshotsByDateRange.all(user.id, startDate, endDate);
+    }
+    return stmts.getSnapshotsByUserId.all(user.id);
+};
+
+export const getLatestSnapshot = (username) => {
+    const user = getUser(username);
+    if (!user) return null;
+    return stmts.getLatestSnapshot.get(user.id);
+};
+
+// Backfill historical snapshots from transactions
+export const backfillSnapshots = (username, currentTotalValue, currentCostBasis) => {
+    const user = getUser(username);
+    if (!user) return false;
+
+    const transactions = stmts.getTransactionsByUserId.all(user.id);
+    if (!transactions.length) return false;
+
+    // Sort transactions by date
+    transactions.sort((a, b) => new Date(a.buyDateTime) - new Date(b.buyDateTime));
+
+    // Get the first transaction date
+    const firstTxDate = new Date(transactions[0].buyDateTime);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Calculate days between first tx and today
+    const totalDays = Math.ceil((today - firstTxDate) / (1000 * 60 * 60 * 24));
+    if (totalDays <= 0) return false;
+
+    // Generate snapshots for each day from first transaction to today
+    const snapshots = [];
+
+    for (let i = 0; i <= totalDays; i++) {
+        const date = new Date(firstTxDate);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        // Calculate cumulative cost basis up to this date
+        let cumulativeCostBasis = 0;
+        for (const tx of transactions) {
+            const txDate = new Date(tx.buyDateTime);
+            if (txDate <= date) {
+                cumulativeCostBasis += tx.quantity * tx.buyPricePerUnit;
+            }
+        }
+
+        // Estimate value (linear interpolation from cost basis to current value)
+        const progress = i / totalDays;
+        const estimatedValue = cumulativeCostBasis + (currentTotalValue - currentCostBasis) * progress;
+
+        snapshots.push({
+            userId: user.id,
+            totalValueToman: Math.round(estimatedValue),
+            totalCostBasisToman: Math.round(cumulativeCostBasis),
+            snapshotDate: dateStr
+        });
+    }
+
+    // Insert all snapshots in a transaction
+    const insertSnapshots = db.transaction((snapshots) => {
+        for (const snapshot of snapshots) {
+            stmts.saveSnapshot.run(snapshot);
+        }
+    });
+
+    insertSnapshots(snapshots);
+    return true;
+};
+
 // For migration: batch insert users and transactions
 export const batchInsertUser = db.transaction((userData, transactions) => {
     const userId = createUser(userData);
-    
+
     for (const tx of transactions) {
         stmts.createTransaction.run({
             id: tx.id || Math.random().toString(36).substr(2, 9),
@@ -208,7 +343,7 @@ export const batchInsertUser = db.transaction((userData, transactions) => {
             note: tx.note || null
         });
     }
-    
+
     return userId;
 });
 

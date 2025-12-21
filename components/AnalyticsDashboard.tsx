@@ -54,10 +54,96 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
         return transactions.filter(tx => new Date(tx.buyDateTime).getTime() >= cutoff);
     }, [transactions, timeRange]);
 
-    // Generate portfolio value chart data (simulated historical data)
+    // State for snapshots
+    const [snapshots, setSnapshots] = useState<any[]>([]);
+    const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
+
+    // Fetch and backfill snapshots on mount
+    React.useEffect(() => {
+        const fetchSnapshots = async () => {
+            try {
+                const token = localStorage.getItem('accessToken');
+                const sessionUser = JSON.parse(localStorage.getItem('sessionUser') || '{}');
+                const username = sessionUser.username;
+
+                if (!token || !username) return;
+
+                // First try to backfill if no snapshots exist
+                if (portfolioSummary.totalValueToman > 0) {
+                    await fetch('/api/snapshots/backfill', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            username,
+                            currentTotalValue: portfolioSummary.totalValueToman,
+                            currentCostBasis: portfolioSummary.totalCostBasisToman
+                        })
+                    });
+
+                    // Save today's snapshot with current values
+                    await fetch('/api/snapshots', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            username,
+                            totalValueToman: portfolioSummary.totalValueToman,
+                            totalCostBasisToman: portfolioSummary.totalCostBasisToman
+                        })
+                    });
+                }
+
+                // Fetch all snapshots
+                const res = await fetch(`/api/snapshots?username=${username}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setSnapshots(data);
+                }
+            } catch (err) {
+                console.error('Error fetching snapshots:', err);
+            } finally {
+                setSnapshotsLoaded(true);
+            }
+        };
+
+        fetchSnapshots();
+    }, [portfolioSummary.totalValueToman, portfolioSummary.totalCostBasisToman]);
+
+    // Generate portfolio value chart data from real snapshots
     const chartData = useMemo(() => {
         if (!portfolioSummary.totalValueToman) return [];
 
+        const now = new Date();
+        let cutoffDate = new Date();
+
+        // Calculate cutoff date based on time range
+        if (timeRange === '1W') cutoffDate.setDate(now.getDate() - 7);
+        else if (timeRange === '1M') cutoffDate.setDate(now.getDate() - 30);
+        else if (timeRange === '3M') cutoffDate.setMonth(now.getMonth() - 3);
+        else if (timeRange === '1Y') cutoffDate.setFullYear(now.getFullYear() - 1);
+        else cutoffDate = new Date(0); // ALL
+
+        // Filter snapshots by date range
+        const filteredSnapshots = snapshots.filter(s =>
+            new Date(s.snapshotDate) >= cutoffDate
+        );
+
+        // If we have real snapshots, use them
+        if (filteredSnapshots.length > 0) {
+            return filteredSnapshots.map(s => ({
+                date: new Date(s.snapshotDate).toLocaleDateString('fa-IR', { month: 'short', day: 'numeric' }),
+                value: s.totalValueToman
+            }));
+        }
+
+        // Fallback: simulate data if no snapshots
         const points = timeRange === '1W' ? 7 : timeRange === '1M' ? 30 : timeRange === '3M' ? 12 : timeRange === '1Y' ? 12 : 24;
         const data = [];
         const baseValue = portfolioSummary.totalCostBasisToman || portfolioSummary.totalValueToman;
@@ -65,8 +151,7 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
 
         for (let i = points; i >= 0; i--) {
             const progress = (points - i) / points;
-            const noise = (Math.random() - 0.5) * 0.1;
-            const value = baseValue + (currentValue - baseValue) * progress * (1 + noise);
+            const value = baseValue + (currentValue - baseValue) * progress;
 
             const date = new Date();
             if (timeRange === '1W') date.setDate(date.getDate() - i);
@@ -79,7 +164,7 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
             });
         }
         return data;
-    }, [portfolioSummary, timeRange]);
+    }, [portfolioSummary, timeRange, snapshots]);
 
     // Best and worst performing assets
     const { bestAsset, worstAsset, avgDailyProfit } = useMemo(() => {

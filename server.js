@@ -613,6 +613,55 @@ app.post('/api/prices', async (req, res) => {
     res.json({ success: true });
 });
 
+// Portfolio Snapshot Endpoints
+app.get('/api/snapshots', verifyToken, (req, res) => {
+    const username = req.query.username ? req.query.username.toLowerCase() : req.user.username;
+    const startDate = req.query.startDate || null;
+    const endDate = req.query.endDate || null;
+
+    const snapshots = db.getPortfolioSnapshots(username, startDate, endDate);
+    res.json(snapshots);
+});
+
+app.post('/api/snapshots', verifyToken, (req, res) => {
+    const { username, totalValueToman, totalCostBasisToman } = req.body;
+    const user = username ? username.toLowerCase() : req.user.username;
+
+    const success = db.savePortfolioSnapshot(user, totalValueToman, totalCostBasisToman);
+    if (success) {
+        res.json({ success: true, message: 'Snapshot saved successfully' });
+    } else {
+        res.status(400).json({ success: false, message: 'Failed to save snapshot' });
+    }
+});
+
+app.post('/api/snapshots/backfill', verifyToken, (req, res) => {
+    const { username, currentTotalValue, currentCostBasis } = req.body;
+    const user = username ? username.toLowerCase() : req.user.username;
+
+    // Check if snapshots already exist
+    const existingSnapshots = db.getPortfolioSnapshots(user);
+    if (existingSnapshots.length > 0) {
+        return res.json({
+            success: false,
+            message: 'Snapshots already exist. Backfill skipped.',
+            snapshotCount: existingSnapshots.length
+        });
+    }
+
+    const success = db.backfillSnapshots(user, currentTotalValue, currentCostBasis);
+    if (success) {
+        const snapshots = db.getPortfolioSnapshots(user);
+        res.json({
+            success: true,
+            message: 'Historical snapshots generated successfully',
+            snapshotCount: snapshots.length
+        });
+    } else {
+        res.status(400).json({ success: false, message: 'Failed to generate historical snapshots' });
+    }
+});
+
 // SPA Routing: ارسال تمام درخواست‌های ناشناخته به ایندکس
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
