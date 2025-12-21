@@ -165,7 +165,7 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                     تغییرات ارزش پرتفوی
                 </h3>
                 {chartData.length > 0 ? (
-                    <div className="h-48">
+                    <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData}>
                                 <defs>
@@ -179,13 +179,16 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                                     dataKey="date"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                                    tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
+                                    interval="preserveStartEnd"
+                                    tickMargin={8}
                                 />
                                 <YAxis
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
                                     tickFormatter={(val) => `${(val / 1000000).toFixed(0)}M`}
+                                    width={45}
                                 />
                                 <Tooltip
                                     contentStyle={{
@@ -222,15 +225,15 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                 {/* Best Asset */}
                 <div className="glass-strong rounded-2xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
-                            <ArrowUpRight size={16} className="text-emerald-600 dark:text-emerald-400" />
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                            <ArrowUpRight size={16} className="text-emerald-500" />
                         </div>
                         <span className="text-xs font-bold text-[var(--text-muted)]">بهترین دارایی</span>
                     </div>
                     {bestAsset ? (
                         <>
                             <p className="text-lg font-black text-[var(--text-primary)]">{bestAsset.name}</p>
-                            <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            <p className="text-sm font-bold text-emerald-500">
                                 {formatPercent(bestAsset.pnlPercent)}
                             </p>
                         </>
@@ -242,15 +245,15 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                 {/* Worst Asset */}
                 <div className="glass-strong rounded-2xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center">
-                            <ArrowDownRight size={16} className="text-rose-600 dark:text-rose-400" />
+                        <div className="w-8 h-8 rounded-xl bg-rose-500/20 flex items-center justify-center">
+                            <ArrowDownRight size={16} className="text-rose-500" />
                         </div>
                         <span className="text-xs font-bold text-[var(--text-muted)]">بدترین دارایی</span>
                     </div>
                     {worstAsset ? (
                         <>
                             <p className="text-lg font-black text-[var(--text-primary)]">{worstAsset.name}</p>
-                            <p className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                            <p className="text-sm font-bold text-rose-500">
                                 {formatPercent(worstAsset.pnlPercent)}
                             </p>
                         </>
@@ -262,12 +265,12 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                 {/* Avg Daily Profit */}
                 <div className="glass-strong rounded-2xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
-                            <Clock size={16} className="text-blue-600 dark:text-blue-400" />
+                        <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                            <Clock size={16} className="text-blue-500" />
                         </div>
                         <span className="text-xs font-bold text-[var(--text-muted)]">میانگین سود روزانه</span>
                     </div>
-                    <p className={`text-lg font-black ${avgDailyProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                    <p className={`text-lg font-black ${avgDailyProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {formatToman(Math.abs(avgDailyProfit))}
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">تومان</p>
@@ -281,7 +284,7 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                     توزیع دارایی‌ها
                 </h3>
                 {portfolioSummary.assets.length > 0 ? (
-                    <div className="h-56">
+                    <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={portfolioSummary.assets.slice(0, 8)} layout="vertical">
                                 <XAxis
