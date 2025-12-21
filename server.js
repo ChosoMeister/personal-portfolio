@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import * as db from './database.js';
+import * as historicalPrices from './historicalPrices.js';
 
 // JWT Secrets from environment variables
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'dev-access-secret-change-in-production';
@@ -662,6 +663,117 @@ app.post('/api/snapshots/backfill', verifyToken, (req, res) => {
     }
 });
 
+// Historical Price Endpoints
+app.get('/api/prices/historical', verifyToken, (req, res) => {
+    const { symbol, startDate, endDate } = req.query;
+
+    if (!symbol) {
+        return res.status(400).json({ message: 'Symbol required' });
+    }
+
+    const prices = db.getHistoricalPrices(symbol, startDate, endDate);
+    res.json(prices);
+});
+
+app.post('/api/prices/backfill-historical', verifyToken, async (req, res) => {
+    try {
+        const { symbols, startDate } = req.body;
+
+        if (!symbols || !symbols.length) {
+            return res.status(400).json({ message: 'Symbols required' });
+        }
+
+        const start = startDate ? new Date(startDate) : new Date('2024-01-01');
+        const end = new Date();
+
+        // Get Wednesdays between start and end
+        const wednesdays = historicalPrices.getWednesdays(start, end);
+
+        // Separate Iranian and crypto assets
+        const iranianSymbols = symbols.filter(s => historicalPrices.getAssetType(s) === 'iranian');
+        const cryptoSymbols = symbols.filter(s => historicalPrices.getAssetType(s) === 'crypto');
+
+        let savedCount = 0;
+        let skippedCount = 0;
+
+        // Process each Wednesday
+        for (const dateStr of wednesdays) {
+            // Skip if we already have prices for this date
+            const existingPrices = db.getAllHistoricalPricesForDate(dateStr);
+            const existingSymbols = new Set(existingPrices.map(p => p.symbol));
+
+            // Iranian assets - fetch from Gemini if needed
+            const missingIranian = iranianSymbols.filter(s => !existingSymbols.has(s));
+            if (missingIranian.length > 0) {
+                const iranPrices = await historicalPrices.fetchIranianHistoricalPrices(dateStr, missingIranian);
+                if (iranPrices) {
+                    for (const [symbol, price] of Object.entries(iranPrices)) {
+                        if (price && !existingSymbols.has(symbol)) {
+                            db.saveHistoricalPrice(symbol, dateStr, price, 'gemini');
+                            savedCount++;
+                        }
+                    }
+                }
+            } else {
+                skippedCount += iranianSymbols.length;
+            }
+
+            // Crypto assets - fetch from CoinGecko if needed
+            const missingCrypto = cryptoSymbols.filter(s => !existingSymbols.has(s));
+            if (missingCrypto.length > 0) {
+                // Get USD rate for this date (from existing data or estimate)
+                const usdPrice = existingPrices.find(p => p.symbol === 'USD')?.priceToman || 70000;
+                const cryptoPrices = await historicalPrices.fetchCryptoHistoricalPrices(dateStr, missingCrypto, usdPrice);
+                if (cryptoPrices) {
+                    for (const [symbol, price] of Object.entries(cryptoPrices)) {
+                        if (price && !existingSymbols.has(symbol)) {
+                            db.saveHistoricalPrice(symbol, dateStr, price, 'coingecko');
+                            savedCount++;
+                        }
+                    }
+                }
+            } else {
+                skippedCount += cryptoSymbols.length;
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Backfill completed`,
+            datesProcessed: wednesdays.length,
+            pricesSaved: savedCount,
+            pricesSkipped: skippedCount
+        });
+    } catch (error) {
+        console.error('Backfill error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Save today's prices to historical_prices when prices are refreshed
+app.post('/api/prices/save-today', verifyToken, async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const { prices } = req.body;
+
+        if (!prices || typeof prices !== 'object') {
+            return res.status(400).json({ message: 'Prices object required' });
+        }
+
+        let savedCount = 0;
+        for (const [symbol, price] of Object.entries(prices)) {
+            if (price && typeof price === 'number') {
+                db.saveHistoricalPrice(symbol, today, price, 'live');
+                savedCount++;
+            }
+        }
+
+        res.json({ success: true, savedCount, date: today });
+    } catch (error) {
+        console.error('Save today prices error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 // SPA Routing: ارسال تمام درخواست‌های ناشناخته به ایندکس
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));

@@ -52,10 +52,22 @@ db.exec(`
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS historical_prices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        symbol TEXT NOT NULL,
+        priceDate TEXT NOT NULL,
+        priceToman REAL NOT NULL,
+        source TEXT DEFAULT 'ai',
+        createdAt TEXT DEFAULT (datetime('now')),
+        UNIQUE(symbol, priceDate)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_transactions_userId ON transactions(userId);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_snapshots_userId ON portfolio_snapshots(userId);
     CREATE INDEX IF NOT EXISTS idx_snapshots_date ON portfolio_snapshots(snapshotDate);
+    CREATE INDEX IF NOT EXISTS idx_historical_prices_symbol ON historical_prices(symbol);
+    CREATE INDEX IF NOT EXISTS idx_historical_prices_date ON historical_prices(priceDate);
 `);
 
 // Prepared statements for better performance
@@ -120,6 +132,33 @@ const stmts = {
         LIMIT 1
     `),
     deleteSnapshotsByUserId: db.prepare('DELETE FROM portfolio_snapshots WHERE userId = ?'),
+
+    // Historical prices queries
+    getHistoricalPricesBySymbol: db.prepare(`
+        SELECT * FROM historical_prices 
+        WHERE symbol = ? 
+        ORDER BY priceDate ASC
+    `),
+    getHistoricalPricesByDateRange: db.prepare(`
+        SELECT * FROM historical_prices 
+        WHERE symbol = ? AND priceDate >= ? AND priceDate <= ?
+        ORDER BY priceDate ASC
+    `),
+    getHistoricalPrice: db.prepare(`
+        SELECT * FROM historical_prices 
+        WHERE symbol = ? AND priceDate = ?
+    `),
+    saveHistoricalPrice: db.prepare(`
+        INSERT INTO historical_prices (symbol, priceDate, priceToman, source)
+        VALUES (@symbol, @priceDate, @priceToman, @source)
+        ON CONFLICT(symbol, priceDate) DO UPDATE SET
+        priceToman = @priceToman,
+        source = @source
+    `),
+    getAllHistoricalPricesForDate: db.prepare(`
+        SELECT * FROM historical_prices 
+        WHERE priceDate = ?
+    `),
 };
 
 // Helper functions
@@ -325,6 +364,45 @@ export const backfillSnapshots = (username, currentTotalValue, currentCostBasis)
     insertSnapshots(snapshots);
     return true;
 };
+
+// Historical prices functions
+export const saveHistoricalPrice = (symbol, priceDate, priceToman, source = 'ai') => {
+    stmts.saveHistoricalPrice.run({
+        symbol,
+        priceDate,
+        priceToman,
+        source
+    });
+    return true;
+};
+
+export const getHistoricalPrices = (symbol, startDate = null, endDate = null) => {
+    if (startDate && endDate) {
+        return stmts.getHistoricalPricesByDateRange.all(symbol, startDate, endDate);
+    }
+    return stmts.getHistoricalPricesBySymbol.all(symbol);
+};
+
+export const hasHistoricalPrice = (symbol, priceDate) => {
+    const existing = stmts.getHistoricalPrice.get(symbol, priceDate);
+    return !!existing;
+};
+
+export const getAllHistoricalPricesForDate = (priceDate) => {
+    return stmts.getAllHistoricalPricesForDate.all(priceDate);
+};
+
+export const saveBatchHistoricalPrices = db.transaction((prices) => {
+    for (const price of prices) {
+        stmts.saveHistoricalPrice.run({
+            symbol: price.symbol,
+            priceDate: price.priceDate,
+            priceToman: price.priceToman,
+            source: price.source || 'ai'
+        });
+    }
+    return true;
+});
 
 // For migration: batch insert users and transactions
 export const batchInsertUser = db.transaction((userData, transactions) => {
