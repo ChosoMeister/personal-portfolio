@@ -149,8 +149,8 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                         key={key}
                         onClick={() => setTimeRange(key)}
                         className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${timeRange === key
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                                : 'bg-[var(--muted-surface)] text-[var(--text-muted)] hover:bg-[var(--pill-bg)]'
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                            : 'bg-[var(--muted-surface)] text-[var(--text-muted)] hover:bg-[var(--pill-bg)]'
                             }`}
                     >
                         {label}
@@ -192,8 +192,11 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                                         background: 'var(--card-bg)',
                                         border: '1px solid var(--border-color)',
                                         borderRadius: '12px',
-                                        fontSize: '12px'
+                                        fontSize: '12px',
+                                        color: 'var(--text-primary)'
                                     }}
+                                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
+                                    itemStyle={{ color: 'var(--text-muted)' }}
                                     formatter={(value: number) => [formatToman(value) + ' ت', 'ارزش']}
                                 />
                                 <Line
@@ -293,16 +296,19 @@ const AnalyticsDashboardComponent: React.FC<AnalyticsDashboardProps> = ({
                                     dataKey="name"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-                                    width={80}
+                                    tick={{ fontSize: 11, fill: 'var(--text-primary)' }}
+                                    width={100}
                                 />
                                 <Tooltip
                                     contentStyle={{
                                         background: 'var(--card-bg)',
                                         border: '1px solid var(--border-color)',
                                         borderRadius: '12px',
-                                        fontSize: '12px'
+                                        fontSize: '12px',
+                                        color: 'var(--text-primary)'
                                     }}
+                                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 'bold' }}
+                                    itemStyle={{ color: 'var(--text-muted)' }}
                                     formatter={(value: number) => [`${value.toFixed(1)}%`, 'سهم']}
                                 />
                                 <Bar dataKey="allocationPercent" radius={[0, 8, 8, 0]}>
