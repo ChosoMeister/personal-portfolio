@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { API } from '../services/api';
-import { Users, Trash2, Key, ShieldCheck, X, Clock, BarChart, AlertTriangle } from 'lucide-react';
+import { Users, Trash2, Key, ShieldCheck, X, Clock, BarChart, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -12,6 +12,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('');
   const [offline, setOffline] = useState(false);
+  const [refreshingPrices, setRefreshingPrices] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const loadUsers = async () => {
     try {
@@ -27,6 +29,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  const handleForceRefreshPrices = async () => {
+    setRefreshingPrices(true);
+    setRefreshResult(null);
+    try {
+      const result = await API.forceRefreshPrices();
+      setRefreshResult({ success: true, message: result.message || 'قیمت‌ها با موفقیت بروزرسانی شدند' });
+    } catch (error: any) {
+      setRefreshResult({ success: false, message: error?.message || 'بروزرسانی ناموفق بود' });
+    } finally {
+      setRefreshingPrices(false);
+    }
+  };
 
   const handleDelete = async (username: string) => {
     if (confirm(`آیا از حذف کاربر ${username} اطمینان دارید؟ تمام داده‌های او پاک خواهد شد.`)) {
@@ -63,15 +78,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Portfolio Panel Security</p>
           </div>
         </div>
-        <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-all">
-          <X size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleForceRefreshPrices}
+            disabled={refreshingPrices}
+            className="flex items-center gap-2 p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl hover:bg-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="بروزرسانی فورس قیمت‌ها (بدون محدودیت زمانی)"
+          >
+            <RefreshCw size={18} className={refreshingPrices ? 'animate-spin' : ''} />
+            <span className="text-xs font-bold hidden sm:inline">فورس قیمت‌ها</span>
+          </button>
+          <button onClick={onClose} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:bg-white/10 transition-all">
+            <X size={20} />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {refreshResult && (
+          <div className={`${refreshResult.success ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' : 'bg-rose-500/10 border-rose-500/30 text-rose-200'} border text-[11px] font-bold py-3 px-4 rounded-xl flex items-center gap-3`}>
+            {refreshResult.success ? <RefreshCw size={16} /> : <AlertTriangle size={16} />}
+            <p>{refreshResult.message}</p>
+          </div>
+        )}
+
         {loading ? (
           <div className="h-full flex items-center justify-center">
-             <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin"></div>
           </div>
         ) : (
           <div className="space-y-3">

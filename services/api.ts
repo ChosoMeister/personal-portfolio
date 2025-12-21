@@ -374,6 +374,16 @@ export const API = {
     return data;
   },
 
+  // Admin-only: Force refresh prices without 1-hour limit
+  forceRefreshPrices: async () => {
+    const res = await authFetch(`${BASE_URL}/api/admin/prices/force-refresh`, {
+      method: 'POST',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'بروزرسانی فورس قیمت‌ها ناموفق بود');
+    return data;
+  },
+
   savePrices: async (prices: PriceData) => {
     localStorage.setItem(LOCAL_PRICES_KEY, JSON.stringify(prices));
     await fetch(`${BASE_URL}/api/prices`, {

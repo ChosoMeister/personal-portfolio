@@ -729,6 +729,102 @@ app.post('/api/prices', async (req, res) => {
     res.json({ success: true });
 });
 
+// Admin verification middleware
+const verifyAdmin = (req, res, next) => {
+    if (!req.user || !req.user.isAdmin) {
+        return res.status(403).json({ message: 'دسترسی فقط برای ادمین مجاز است' });
+    }
+    next();
+};
+
+// Admin-only force price refresh (bypasses 1-hour limit)
+app.post('/api/admin/prices/force-refresh', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        console.log(`[Admin] Force price refresh triggered by ${req.user.username}`);
+        const sources = [];
+
+        // Fetch currencies with fallback
+        const fiatResult = await fetchWithFallback(
+            fetchCurrencyBoard,
+            [fetchNavasanCurrency],
+            'currencies'
+        );
+        const fiatPrices = fiatResult.data;
+        sources.push({ type: 'fiat', source: fiatResult.source });
+
+        // Fetch crypto (no fallback needed, alanchand is reliable for this)
+        let cryptoPrices = {};
+        try {
+            cryptoPrices = await fetchCryptoBoard();
+            sources.push({ type: 'crypto', source: 'alanchand' });
+        } catch (e) {
+            console.log('[Prices] crypto fetch failed:', e.message);
+            sources.push({ type: 'crypto', source: 'none' });
+        }
+
+        const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
+
+        // Fetch gold with fallback
+        const goldResult = await fetchWithFallback(
+            () => fetchGoldBoard(usdRate),
+            [fetchTgjuGold],
+            'gold'
+        );
+        const goldPrices = goldResult.data;
+        sources.push({ type: 'gold', source: goldResult.source });
+
+        const priceData = {
+            usdToToman: usdRate,
+            eurToToman: fiatPrices.EUR || pricesCache?.eurToToman || FALLBACK_PRICES.eurToToman,
+            gold18ToToman: goldPrices.GOLD18 || pricesCache?.gold18ToToman || FALLBACK_PRICES.gold18ToToman,
+            fiatPricesToman: { ...fiatPrices },
+            cryptoPricesToman: { ...cryptoPrices },
+            goldPricesToman: { ...goldPrices },
+            fetchedAt: Date.now(),
+        };
+
+        if (!priceData.fiatPricesToman.USD) priceData.fiatPricesToman.USD = priceData.usdToToman;
+        if (!priceData.fiatPricesToman.EUR) priceData.fiatPricesToman.EUR = priceData.eurToToman;
+        if (!priceData.goldPricesToman.GOLD18 && priceData.gold18ToToman) {
+            priceData.goldPricesToman.GOLD18 = priceData.gold18ToToman;
+        }
+
+        pricesCache = priceData;
+
+        // Save to prices file
+        try {
+            await fs.promises.writeFile(PRICES_FILE, JSON.stringify(priceData));
+        } catch (err) {
+            console.error('Error persisting refreshed prices:', err);
+        }
+
+        // Auto-save today's prices to historical_prices
+        const today = new Date().toISOString().split('T')[0];
+        try {
+            const allPrices = { ...fiatPrices, ...goldPrices, ...cryptoPrices };
+            for (const [symbol, price] of Object.entries(allPrices)) {
+                if (price && typeof price === 'number') {
+                    db.saveHistoricalPrice(symbol, today, price, 'live');
+                }
+            }
+            console.log(`[Prices] Saved ${Object.keys(allPrices).length} prices to historical for ${today}`);
+        } catch (err) {
+            console.error('Error saving historical prices:', err);
+        }
+
+        res.json({
+            success: true,
+            data: priceData,
+            sources,
+            forcedBy: req.user.username,
+            message: 'قیمت‌ها با موفقیت بروزرسانی شدند (فورس)',
+        });
+    } catch (error) {
+        console.error('Error force refreshing prices:', error);
+        res.status(500).json({ message: 'بروزرسانی قیمت‌ها با خطا مواجه شد' });
+    }
+});
+
 // Portfolio Snapshot Endpoints
 app.get('/api/snapshots', verifyToken, (req, res) => {
     const username = req.query.username ? req.query.username.toLowerCase() : req.user.username;
