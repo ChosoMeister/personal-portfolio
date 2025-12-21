@@ -22,6 +22,7 @@ import { useHaptics } from './hooks/useHaptics';
 const TransactionModal = lazy(() => import('./components/TransactionModal').then(module => ({ default: module.TransactionModal })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(module => ({ default: module.AdminPanel })));
 const SettingsDrawer = lazy(() => import('./components/SettingsDrawer').then(module => ({ default: module.SettingsDrawer })));
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(module => ({ default: module.AnalyticsDashboard })));
 
 export default function App() {
   type SessionUser = { username: string; isAdmin: boolean; displayName?: string };
@@ -417,6 +418,16 @@ export default function App() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === 'analytics' && (
+          <div className="p-4 pb-20 animate-in fade-in duration-300">
+            <AnalyticsDashboard
+              transactions={transactions}
+              portfolioSummary={portfolioSummary}
+              prices={prices}
+            />
           </div>
         )}
 

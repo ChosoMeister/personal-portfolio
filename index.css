@@ -10,6 +10,7 @@
   --text-primary: #0f172a;
   --text-muted: #6b7280;
   --border-color: #e2e8f0;
+  --accent-color: #3b82f6;
 }
 
 body.dark {
@@ -20,6 +21,55 @@ body.dark {
   --text-primary: #e2e8f0;
   --text-muted: #94a3b8;
   --border-color: #1f2937;
+  --accent-color: #3b82f6;
+}
+
+/* AMOLED Black - Pure black for OLED battery savings */
+body.amoled {
+  --app-bg: #000000;
+  --card-bg: #0a0a0a;
+  --muted-surface: #121212;
+  --pill-bg: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-muted: #888888;
+  --border-color: #1f1f1f;
+  --accent-color: #8b5cf6;
+}
+
+/* Sunset - Warm orange/pink gradient theme */
+body.sunset {
+  --app-bg: #1a0a0f;
+  --card-bg: #2d1318;
+  --muted-surface: #3d1a20;
+  --pill-bg: #4a2028;
+  --text-primary: #fce7e9;
+  --text-muted: #e8a8af;
+  --border-color: #5a2830;
+  --accent-color: #f97316;
+}
+
+/* Ocean - Calming blue/teal theme */
+body.ocean {
+  --app-bg: #0a1520;
+  --card-bg: #0d1f2d;
+  --muted-surface: #12293a;
+  --pill-bg: #183448;
+  --text-primary: #e0f2fe;
+  --text-muted: #7dd3fc;
+  --border-color: #1e3a4f;
+  --accent-color: #06b6d4;
+}
+
+/* Forest - Natural green theme */
+body.forest {
+  --app-bg: #0a150d;
+  --card-bg: #0d1f12;
+  --muted-surface: #122918;
+  --pill-bg: #18341e;
+  --text-primary: #dcfce7;
+  --text-muted: #86efac;
+  --border-color: #1e4025;
+  --accent-color: #22c55e;
 }
 
 body {
@@ -92,6 +142,7 @@ body.dark .glass-strong {
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }

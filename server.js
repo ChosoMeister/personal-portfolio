@@ -9,6 +9,14 @@ import * as cheerio from 'cheerio';
 import bcrypt from 'bcrypt';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import jwt from 'jsonwebtoken';
+import * as db from './database.js';
+
+// JWT Secrets from environment variables
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'dev-access-secret-change-in-production';
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'dev-refresh-secret-change-in-production';
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY = '7d';
 
 // Zod Validation Schemas
 const usernameSchema = z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, 'نام کاربری فقط شامل حروف، اعداد و _ باشد');
@@ -48,6 +56,44 @@ const apiLimiter = rateLimit({
     message: { message: 'تعداد درخواست‌ها بیش از حد مجاز است.' }
 });
 
+// JWT Token Generation Functions
+const generateAccessToken = (user) => {
+    return jwt.sign(
+        { username: user.username, isAdmin: !!user.isAdmin },
+        ACCESS_TOKEN_SECRET,
+        { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+};
+
+const generateRefreshToken = (user) => {
+    return jwt.sign(
+        { username: user.username },
+        REFRESH_TOKEN_SECRET,
+        { expiresIn: REFRESH_TOKEN_EXPIRY }
+    );
+};
+
+// JWT Verification Middleware
+const verifyToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+        return res.status(401).json({ message: 'توکن احراز هویت یافت نشد' });
+    }
+
+    jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            if (err.name === 'TokenExpiredError') {
+                return res.status(401).json({ message: 'توکن منقضی شده است', expired: true });
+            }
+            return res.status(403).json({ message: 'توکن نامعتبر است' });
+        }
+        req.user = decoded;
+        next();
+    });
+};
+
 const BCRYPT_ROUNDS = 12;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -58,30 +104,16 @@ const PORT = process.env.PORT || 8080;
 
 // در محیط داکر یا پروداکشن، دیتا در پوشه /app/data ذخیره می‌شود
 const DATA_DIR = process.env.NODE_ENV === 'production' ? '/app/data' : path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json');
 const FALLBACK_PRICES = { usdToToman: 70000, eurToToman: 74000, gold18ToToman: 4700000 };
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
-// Memory Cache
-let usersCache = [];
+// Memory Cache for prices only (users are now in SQLite)
 let pricesCache = null;
 
 // اطمینان از وجود دایرکتوری داده‌ها
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Load data into memory on startup
-try {
-    if (fs.existsSync(USERS_FILE)) {
-        usersCache = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
-    } else {
-        fs.writeFileSync(USERS_FILE, JSON.stringify([]));
-    }
-} catch (e) {
-    console.error('Error loading users:', e);
-    usersCache = [];
 }
 
 try {
@@ -232,57 +264,46 @@ app.use(express.static(path.join(__dirname, 'dist')));
 const ADMIN_USER = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || 'password';
 
-const getUsers = () => {
-    return usersCache;
-};
-
-const saveUsers = async (users) => {
-    usersCache = users; // Update Memory Immediately
-    try {
-        await fs.promises.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-    } catch (e) {
-        console.error('Error saving users to disk:', e);
-    }
-};
-
 const refreshAdmin = async () => {
-    let users = [...getUsers()]; // Clone to avoid mutation issues
-    let adminIdx = users.findIndex(u => u.username === ADMIN_USER);
-    let changed = false;
+    let user = db.getUser(ADMIN_USER);
 
-    if (adminIdx === -1) {
-        users.push({
+    if (!user) {
+        db.createUser({
             username: ADMIN_USER,
             passwordHash: ADMIN_PASS,
             isAdmin: true,
             displayName: 'ادمین سیستم',
-            createdAt: new Date(),
-            transactions: [],
+            createdAt: new Date().toISOString(),
             securityQuestion: 'کلمه عبور پیش‌فرض ادمین؟',
             securityAnswerHash: ADMIN_PASS
         });
-        changed = true;
+        console.log(`[Security] Admin user created: ${ADMIN_USER}`);
     } else {
-        if (users[adminIdx].passwordHash !== ADMIN_PASS || !users[adminIdx].isAdmin) {
-            users[adminIdx].passwordHash = ADMIN_PASS;
-            users[adminIdx].isAdmin = true;
-            changed = true;
+        let needsUpdate = false;
+        const updates = {};
+
+        if (user.passwordHash !== ADMIN_PASS || !user.isAdmin) {
+            updates.passwordHash = ADMIN_PASS;
+            updates.isAdmin = true;
+            needsUpdate = true;
         }
-        if (!users[adminIdx].displayName) {
-            users[adminIdx].displayName = 'ادمین سیستم';
-            changed = true;
+        if (!user.displayName) {
+            updates.displayName = 'ادمین سیستم';
+            needsUpdate = true;
         }
-        if (!users[adminIdx].securityQuestion) {
-            users[adminIdx].securityQuestion = 'کلمه عبور پیش‌فرض ادمین؟';
-            changed = true;
+        if (!user.securityQuestion) {
+            updates.securityQuestion = 'کلمه عبور پیش‌فرض ادمین؟';
+            needsUpdate = true;
         }
-        if (!users[adminIdx].securityAnswerHash) {
-            users[adminIdx].securityAnswerHash = ADMIN_PASS;
-            changed = true;
+        if (!user.securityAnswerHash) {
+            updates.securityAnswerHash = ADMIN_PASS;
+            needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+            db.updateUser(ADMIN_USER, updates);
         }
     }
-
-    if (changed) await saveUsers(users);
 };
 refreshAdmin();
 
@@ -310,8 +331,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
 
     let { username, password } = validation.data;
     username = username.toLowerCase();
-    const users = getUsers();
-    const user = users.find(u => u.username === username);
+    const user = db.getUser(username);
 
     if (!user) {
         return res.status(401).json({ message: 'نام کاربری یا رمز عبور اشتباه است' });
@@ -331,22 +351,54 @@ app.post('/api/login', authLimiter, async (req, res) => {
         // Migrate legacy password to bcrypt hash
         if (isMatch) {
             const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
-            const userIndex = users.findIndex(u => u.username === username);
-            users[userIndex] = { ...users[userIndex], passwordHash: hashedPassword };
-            await saveUsers(users);
+            db.updateUserPassword(username, hashedPassword);
             console.log(`[Security] Migrated password for user: ${username}`);
         }
     }
 
     if (isMatch) {
+        // Generate JWT tokens
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user);
+
         return res.json({
             username: user.username,
             isAdmin: !!user.isAdmin,
-            displayName: user.displayName || user.username
+            displayName: user.displayName || user.username,
+            accessToken,
+            refreshToken
         });
     }
 
     res.status(401).json({ message: 'نام کاربری یا رمز عبور اشتباه است' });
+});
+
+// Refresh token endpoint
+app.post('/api/refresh', (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'توکن رفرش یافت نشد' });
+    }
+
+    jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).json({ message: 'توکن رفرش نامعتبر است' });
+        }
+
+        const user = db.getUser(decoded.username);
+        if (!user) {
+            return res.status(404).json({ message: 'کاربر یافت نشد' });
+        }
+
+        const accessToken = generateAccessToken(user);
+        const newRefreshToken = generateRefreshToken(user);
+
+        res.json({
+            accessToken,
+            refreshToken: newRefreshToken
+        });
+    });
 });
 
 app.post('/api/register', authLimiter, async (req, res) => {
@@ -358,9 +410,8 @@ app.post('/api/register', authLimiter, async (req, res) => {
 
     let { username, password, displayName, securityQuestion, securityAnswer } = validation.data;
     username = username.toLowerCase();
-    let users = [...getUsers()];
 
-    if (users.find(u => u.username === username)) {
+    if (db.getUser(username)) {
         return res.status(400).json({ message: 'نام کاربری تکراری است' });
     }
 
@@ -368,26 +419,22 @@ app.post('/api/register', authLimiter, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const hashedSecurityAnswer = await bcrypt.hash(securityAnswer.toLowerCase(), BCRYPT_ROUNDS);
 
-    const newUser = {
+    db.createUser({
         username,
         passwordHash: hashedPassword,
         displayName: displayName || username,
-        createdAt: new Date(),
-        transactions: [],
         isAdmin: false,
         securityQuestion,
         securityAnswerHash: hashedSecurityAnswer
-    };
+    });
 
-    users.push(newUser);
-    await saveUsers(users);
     console.log(`[Security] New user registered with hashed credentials: ${username}`);
-    res.json({ username: newUser.username, isAdmin: false, displayName: newUser.displayName });
+    res.json({ username, isAdmin: false, displayName: displayName || username });
 });
 
 app.get('/api/security-question', (req, res) => {
     const username = req.query.username ? req.query.username.toLowerCase() : '';
-    const user = getUsers().find(u => u.username === username);
+    const user = db.getUser(username);
     if (!user) return res.status(404).json({ message: 'کاربر یافت نشد' });
     res.json({ securityQuestion: user.securityQuestion || 'سوال امنیتی ثبت نشده است' });
 });
@@ -401,14 +448,12 @@ app.post('/api/reset-password', authLimiter, async (req, res) => {
 
     let { username, securityAnswer, newPassword } = validation.data;
     username = username.toLowerCase();
-    let users = [...getUsers()];
-    const userIndex = users.findIndex(u => u.username === username);
+    const user = db.getUser(username);
 
-    if (userIndex === -1) {
+    if (!user) {
         return res.status(404).json({ message: 'کاربر یافت نشد' });
     }
 
-    const user = users[userIndex];
     if (!user.securityAnswerHash) {
         return res.status(400).json({ message: 'سوال امنیتی ثبت نشده است' });
     }
@@ -430,31 +475,31 @@ app.post('/api/reset-password', authLimiter, async (req, res) => {
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-    users[userIndex] = { ...user, passwordHash: hashedPassword };
-    await saveUsers(users);
+    db.updateUserPassword(username, hashedPassword);
     console.log(`[Security] Password reset for user: ${username}`);
     res.json({ success: true });
 });
 
 app.get('/api/users', (req, res) => {
-    res.json(getUsers().map(u => ({
+    const users = db.getAllUsers();
+    res.json(users.map(u => ({
         username: u.username,
         createdAt: u.createdAt,
-        txCount: u.transactions.length,
+        txCount: u.txCount,
         isAdmin: !!u.isAdmin,
         displayName: u.displayName || u.username
     })));
 });
 
-app.post('/api/users/delete', async (req, res) => {
+app.post('/api/users/delete', verifyToken, async (req, res) => {
     let { username } = req.body;
     username = username.toLowerCase();
     if (username === ADMIN_USER) return res.status(400).json({ message: 'حذف ادمین غیرمجاز است' });
-    await saveUsers(getUsers().filter(u => u.username !== username));
+    db.deleteUser(username);
     res.json({ success: true });
 });
 
-app.post('/api/users/update-pass', async (req, res) => {
+app.post('/api/users/update-pass', verifyToken, async (req, res) => {
     let { username, newPassword } = req.body;
 
     // Validate password
@@ -464,59 +509,35 @@ app.post('/api/users/update-pass', async (req, res) => {
     }
 
     username = username.toLowerCase();
-    let users = [...getUsers()];
-    const userIndex = users.findIndex(u => u.username === username);
+    const user = db.getUser(username);
 
-    if (userIndex === -1) {
+    if (!user) {
         return res.status(404).json({ message: 'کاربر یافت نشد' });
     }
 
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-    users[userIndex] = { ...users[userIndex], passwordHash: hashedPassword };
-    await saveUsers(users);
+    db.updateUserPassword(username, hashedPassword);
     console.log(`[Security] Password updated for user: ${username}`);
     res.json({ success: true });
 });
 
-app.get('/api/transactions', (req, res) => {
+app.get('/api/transactions', verifyToken, (req, res) => {
     const username = req.query.username ? req.query.username.toLowerCase() : '';
-    const user = getUsers().find(u => u.username === username);
-    res.json(user ? user.transactions : []);
+    const transactions = db.getTransactions(username);
+    res.json(transactions);
 });
 
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', verifyToken, async (req, res) => {
     let { username, transaction } = req.body;
     username = username.toLowerCase();
-    let users = [...getUsers()];
-    const userIndex = users.findIndex(u => u.username === username);
-
-    if (userIndex > -1) {
-        // Create a copy of the user to update
-        const user = { ...users[userIndex], transactions: [...users[userIndex].transactions] };
-        const idx = user.transactions.findIndex(t => t.id === transaction.id);
-
-        if (idx > -1) user.transactions[idx] = transaction;
-        else user.transactions.push(transaction);
-
-        users[userIndex] = user;
-        await saveUsers(users);
-    }
+    db.saveTransaction(username, transaction);
     res.json({ success: true });
 });
 
-app.post('/api/transactions/delete', async (req, res) => {
+app.post('/api/transactions/delete', verifyToken, async (req, res) => {
     let { username, id } = req.body;
-    username = username.toLowerCase();
-    let users = [...getUsers()];
-    const userIndex = users.findIndex(u => u.username === username);
-
-    if (userIndex > -1) {
-        const user = { ...users[userIndex], transactions: [...users[userIndex].transactions] };
-        user.transactions = user.transactions.filter(t => t.id !== id);
-        users[userIndex] = user;
-        await saveUsers(users);
-    }
+    db.deleteTransaction(id);
     res.json({ success: true });
 });
 

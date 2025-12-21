@@ -136,32 +136,49 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <h3 className="text-base font-black">تجربه بصری</h3>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
-                  { key: 'light', label: 'روشن', icon: <SunMedium size={18} /> },
-                  { key: 'dark', label: 'تاریک', icon: <Moon size={18} /> },
-                  { key: 'system', label: 'سیستم', icon: <Laptop2 size={18} /> },
+                  { key: 'light', label: 'روشن', icon: <SunMedium size={16} />, desc: 'پس‌زمینه سفید', colors: { bg: '#f8fafc', card: '#ffffff', accent: '#3b82f6' } },
+                  { key: 'dark', label: 'تاریک', icon: <Moon size={16} />, desc: 'پس‌زمینه تیره', colors: { bg: '#0f172a', card: '#0b1224', accent: '#3b82f6' } },
+                  { key: 'system', label: 'سیستم', icon: <Laptop2 size={16} />, desc: 'تنظیم خودکار', colors: { bg: '#94a3b8', card: '#64748b', accent: '#3b82f6' } },
+                  { key: 'amoled', label: 'AMOLED', icon: <Moon size={16} />, desc: 'مشکی خالص', colors: { bg: '#000000', card: '#0a0a0a', accent: '#8b5cf6' } },
+                  { key: 'sunset', label: 'غروب', icon: <SunMedium size={16} />, desc: 'نارنجی گرم', colors: { bg: '#1a0a0f', card: '#2d1318', accent: '#f97316' } },
+                  { key: 'ocean', label: 'اقیانوس', icon: <Moon size={16} />, desc: 'آبی آرامش', colors: { bg: '#0a1520', card: '#0d1f2d', accent: '#06b6d4' } },
+                  { key: 'forest', label: 'جنگل', icon: <Moon size={16} />, desc: 'سبز طبیعت', colors: { bg: '#0a150d', card: '#0d1f12', accent: '#22c55e' } },
                 ].map((option) => (
                   <button
                     key={option.key}
                     type="button"
                     onClick={() => onThemeChange(option.key as ThemeOption)}
-                    className={`flex items-center justify-between gap-3 border rounded-2xl px-4 py-3 text-right transition-all ${
-                      theme === option.key
-                        ? 'border-blue-500 bg-blue-50/70 text-blue-600 shadow-sm'
-                        : 'border-[color:var(--border-color)] bg-[var(--muted-surface)] text-[color:var(--text-primary)]'
-                    }`}
+                    className={`flex flex-col gap-2 border rounded-2xl p-3 text-right transition-all ${theme === option.key
+                        ? 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg'
+                        : 'border-[color:var(--border-color)] bg-[var(--muted-surface)]/50'
+                      }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center text-blue-500">
+                    {/* Mini Preview Card */}
+                    <div
+                      className="w-full h-12 rounded-xl relative overflow-hidden border border-white/10"
+                      style={{ backgroundColor: option.colors.bg }}
+                    >
+                      <div
+                        className="absolute bottom-1 left-1 right-1 h-6 rounded-lg"
+                        style={{ backgroundColor: option.colors.card }}
+                      />
+                      <div
+                        className="absolute top-1 right-1 w-3 h-3 rounded-full"
+                        style={{ backgroundColor: option.colors.accent }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center" style={{ color: option.colors.accent }}>
                         {option.icon}
                       </div>
-                      <div>
-                        <p className="text-sm font-black">{option.label}</p>
-                        <p className="text-[10px] font-bold text-[color:var(--text-muted)]">هماهنگی با حالت {option.label}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black truncate">{option.label}</p>
+                        <p className="text-[9px] font-bold text-[color:var(--text-muted)] truncate">{option.desc}</p>
                       </div>
+                      {theme === option.key && <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0" />}
                     </div>
-                    {theme === option.key && <CheckCircle2 size={18} className="text-blue-500" />}
                   </button>
                 ))}
               </div>
@@ -205,11 +222,10 @@ export const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
               {status.type && (
                 <div
-                  className={`p-4 rounded-2xl flex items-center gap-3 border ${
-                    status.type === 'success'
+                  className={`p-4 rounded-2xl flex items-center gap-3 border ${status.type === 'success'
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                       : 'bg-rose-50 text-rose-700 border-rose-100'
-                  }`}
+                    }`}
                 >
                   {status.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
                   <span className="text-xs font-bold">{status.msg}</span>

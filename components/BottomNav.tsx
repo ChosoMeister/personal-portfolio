@@ -1,5 +1,5 @@
 import React, { memo, useCallback } from 'react';
-import { LayoutDashboard, PieChart, History } from 'lucide-react';
+import { LayoutDashboard, PieChart, History, BarChart3 } from 'lucide-react';
 import { useHaptics } from '../hooks/useHaptics';
 
 interface BottomNavProps {
@@ -10,6 +10,7 @@ interface BottomNavProps {
 const tabs = [
   { id: 'overview', label: 'نگاه کلی', icon: LayoutDashboard },
   { id: 'holdings', label: 'دارایی‌ها', icon: PieChart },
+  { id: 'analytics', label: 'تحلیل‌ها', icon: BarChart3 },
   { id: 'transactions', label: 'تراکنش‌ها', icon: History },
 ];
 

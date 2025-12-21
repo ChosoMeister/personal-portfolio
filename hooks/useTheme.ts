@@ -1,7 +1,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-export type ThemeOption = 'light' | 'dark' | 'system';
+export type ThemeOption = 'light' | 'dark' | 'system' | 'amoled' | 'sunset' | 'ocean' | 'forest';
+
+const ALL_THEME_CLASSES = ['dark', 'amoled', 'sunset', 'ocean', 'forest'];
 
 /**
  * Hook for managing theme state and system preference detection
@@ -13,7 +15,7 @@ export const useTheme = () => {
         return stored || 'system';
     });
 
-    const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+    const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark' | 'amoled' | 'sunset' | 'ocean' | 'forest'>('light');
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -21,11 +23,26 @@ export const useTheme = () => {
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
         const applyTheme = () => {
-            const nextTheme = theme === 'system'
-                ? (mediaQuery.matches ? 'dark' : 'light')
-                : theme;
+            let nextTheme: typeof resolvedTheme;
+
+            if (theme === 'system') {
+                nextTheme = mediaQuery.matches ? 'dark' : 'light';
+            } else if (theme === 'light') {
+                nextTheme = 'light';
+            } else {
+                nextTheme = theme;
+            }
+
             setResolvedTheme(nextTheme);
-            document.body.classList.toggle('dark', nextTheme === 'dark');
+
+            // Remove all theme classes first
+            ALL_THEME_CLASSES.forEach(cls => document.body.classList.remove(cls));
+
+            // Add appropriate class for non-light themes
+            if (nextTheme !== 'light') {
+                document.body.classList.add(nextTheme);
+            }
+
             localStorage.setItem('theme', theme);
         };
 
@@ -40,7 +57,11 @@ export const useTheme = () => {
     const toggleTheme = useCallback(() => {
         setTheme(prev => {
             if (prev === 'light') return 'dark';
-            if (prev === 'dark') return 'system';
+            if (prev === 'dark') return 'amoled';
+            if (prev === 'amoled') return 'sunset';
+            if (prev === 'sunset') return 'ocean';
+            if (prev === 'ocean') return 'forest';
+            if (prev === 'forest') return 'system';
             return 'light';
         });
     }, []);
@@ -50,7 +71,7 @@ export const useTheme = () => {
         setTheme,
         resolvedTheme,
         toggleTheme,
-        isDark: resolvedTheme === 'dark',
+        isDark: resolvedTheme !== 'light',
     };
 };
 

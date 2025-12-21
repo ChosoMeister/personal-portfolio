@@ -8,6 +8,10 @@ const LOCAL_USERS_KEY = 'gemini_fallback_users';
 const LOCAL_PRICES_KEY = 'gemini_fallback_prices';
 const DEFAULT_ADMIN_USERNAME = 'admin';
 
+// JWT Token Storage Keys
+const ACCESS_TOKEN_KEY = 'portfolio_access_token';
+const REFRESH_TOKEN_KEY = 'portfolio_refresh_token';
+
 type EnvSource = Record<string, any>;
 
 type Credential = {
@@ -15,6 +19,101 @@ type Credential = {
   password?: string;
   isAdmin?: boolean;
   displayName?: string;
+};
+
+// Token Management Functions
+const getAccessToken = (): string | null => localStorage.getItem(ACCESS_TOKEN_KEY);
+const getRefreshToken = (): string | null => localStorage.getItem(REFRESH_TOKEN_KEY);
+
+const setTokens = (accessToken: string, refreshToken: string) => {
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+};
+
+const clearTokens = () => {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+};
+
+// Decode JWT to check expiration
+const isTokenExpiringSoon = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const exp = payload.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    // Consider token expired if less than 2 minutes remaining
+    return exp - now < 2 * 60 * 1000;
+  } catch {
+    return true;
+  }
+};
+
+// Refresh access token using refresh token
+const refreshAccessToken = async (): Promise<boolean> => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setTokens(data.accessToken, data.refreshToken);
+      return true;
+    }
+
+    // If refresh fails, clear tokens
+    clearTokens();
+    return false;
+  } catch {
+    return false;
+  }
+};
+
+// Fetch with authentication and auto-refresh
+const authFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  let accessToken = getAccessToken();
+
+  // Check if token needs refresh
+  if (accessToken && isTokenExpiringSoon(accessToken)) {
+    await refreshAccessToken();
+    accessToken = getAccessToken();
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {})
+  };
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  const res = await fetch(url, { ...options, headers });
+
+  // If 401 with expired flag, try to refresh and retry once
+  if (res.status === 401) {
+    const data = await res.clone().json().catch(() => ({}));
+    if (data.expired) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        const newToken = getAccessToken();
+        if (newToken) {
+          headers['Authorization'] = `Bearer ${newToken}`;
+          return fetch(url, { ...options, headers });
+        }
+      }
+    }
+    // If refresh failed or token invalid, redirect to login
+    clearTokens();
+    window.dispatchEvent(new CustomEvent('auth:logout'));
+  }
+
+  return res;
 };
 
 const resolveEnv = (): EnvSource => {
@@ -164,8 +263,12 @@ export const API = {
 
       if (res.ok) {
         const data = await res.json();
+        // Store JWT tokens
+        if (data.accessToken && data.refreshToken) {
+          setTokens(data.accessToken, data.refreshToken);
+        }
         await trySyncLocalUsers({ username, password: pass, isAdmin: data.isAdmin, displayName: data.displayName });
-        return data;
+        return { username: data.username, isAdmin: data.isAdmin, displayName: data.displayName };
       }
 
       if (res.status === 401) throw new Error('نام کاربری یا رمز عبور اشتباه است');
@@ -192,6 +295,10 @@ export const API = {
       serverResponded = true;
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || 'ثبت‌نام با خطا مواجه شد');
+      // Store JWT tokens if returned
+      if (data.accessToken && data.refreshToken) {
+        setTokens(data.accessToken, data.refreshToken);
+      }
       await trySyncLocalUsers({ username, password: pass, isAdmin: false, displayName: data.displayName });
       return data;
     } catch (error) {
@@ -206,10 +313,14 @@ export const API = {
     }
   },
 
+  logout: () => {
+    clearTokens();
+  },
+
   getTransactions: async (username: string) => {
     username = username.toLowerCase();
     try {
-      const res = await fetch(`${BASE_URL}/api/transactions?username=${username}`);
+      const res = await authFetch(`${BASE_URL}/api/transactions?username=${username}`);
       if (res.ok) return res.json();
     } catch (e) { }
     const user = getLocalUsers().find((u: any) => u.username === username);
@@ -226,7 +337,7 @@ export const API = {
       else user.transactions.push(tx);
       saveLocalUsers(users);
     }
-    await fetch(`${BASE_URL}/api/transactions`, {
+    await authFetch(`${BASE_URL}/api/transactions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, transaction: tx })
@@ -241,7 +352,7 @@ export const API = {
       user.transactions = user.transactions.filter((t: any) => t.id !== txId);
       saveLocalUsers(users);
     }
-    await fetch(`${BASE_URL}/api/transactions/delete`, {
+    await authFetch(`${BASE_URL}/api/transactions/delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, id: txId })
@@ -303,7 +414,7 @@ export const API = {
     username = username.toLowerCase();
     let serverResponded = false;
     try {
-      const res = await withTimeout(`${BASE_URL}/api/users/delete`, {
+      const res = await authFetch(`${BASE_URL}/api/users/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
@@ -324,7 +435,7 @@ export const API = {
     username = username.toLowerCase();
     let serverResponded = false;
     try {
-      const res = await withTimeout(`${BASE_URL}/api/users/update-pass`, {
+      const res = await authFetch(`${BASE_URL}/api/users/update-pass`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, newPassword: newPass })
@@ -383,6 +494,18 @@ export const API = {
       user.password = newPassword;
       user.passwordHash = newPassword;
       saveLocalUsers(users);
+    }
+  },
+
+  // Check if user is authenticated
+  isAuthenticated: (): boolean => {
+    const token = getAccessToken();
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 > Date.now();
+    } catch {
+      return false;
     }
   }
 };
