@@ -16,6 +16,19 @@ interface SummaryCardProps {
 const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshing, lastUpdated, onRefresh, prices }) => {
   const isProfit = summary.totalPnlToman >= 0;
 
+  // Dynamic font size based on number magnitude to prevent overflow
+  const getValueFontSize = (value: number) => {
+    const absValue = Math.abs(value);
+    if (absValue >= 10_000_000_000_000) return 'text-lg'; // 10+ trillion
+    if (absValue >= 1_000_000_000_000) return 'text-xl';  // 1+ trillion  
+    if (absValue >= 100_000_000_000) return 'text-2xl';   // 100+ billion
+    if (absValue >= 10_000_000_000) return 'text-3xl';    // 10+ billion
+    if (absValue >= 1_000_000_000) return 'text-4xl';     // 1+ billion
+    return 'text-5xl'; // Default for smaller numbers
+  };
+
+  const valueFontSize = getValueFontSize(summary.totalValueToman);
+
   return (
     <div className="relative overflow-hidden mb-4 rounded-[32px] border border-[var(--border-color)] transition-colors duration-300">
       {/* Refined subtle background */}
@@ -45,9 +58,9 @@ const SummaryCardComponent: React.FC<SummaryCardProps> = ({ summary, isRefreshin
           </div>
 
           <div className="flex flex-col items-center mb-8">
-            <h2 className="text-5xl font-black text-[var(--text-primary)] tracking-tighter drop-shadow-sm transition-colors duration-300">
+            <h2 className={`${valueFontSize} font-black text-[var(--text-primary)] tracking-tighter drop-shadow-sm transition-colors duration-300`}>
               <AnimatedToman value={summary.totalValueToman} showSuffix={false} />
-              <span className="text-2xl text-[var(--text-muted)] mr-2 font-bold">تومان</span>
+              <span className="text-xl sm:text-2xl text-[var(--text-muted)] mr-2 font-bold">تومان</span>
             </h2>
           </div>
 

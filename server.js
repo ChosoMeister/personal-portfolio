@@ -610,6 +610,57 @@ app.post('/api/transactions', verifyToken, async (req, res) => {
     let { username, transaction } = req.body;
     username = username.toLowerCase();
     db.saveTransaction(username, transaction);
+
+    // Trigger background backfill for historical prices for this asset
+    // This runs asynchronously so it doesn't block the response
+    (async () => {
+        try {
+            const symbol = transaction.assetSymbol;
+            const txDate = new Date(transaction.buyDateTime);
+            const today = new Date();
+
+            // Get date range from transaction to today
+            const startDateStr = txDate.toISOString().split('T')[0];
+            const todayStr = today.toISOString().split('T')[0];
+
+            // Check if we already have historical prices for this symbol
+            const existingPrices = db.getHistoricalPrices(symbol, startDateStr, todayStr);
+
+            if (existingPrices.length === 0) {
+                console.log(`[HistoricalPrices] Triggering backfill for ${symbol} from ${startDateStr} to ${todayStr}`);
+
+                // Get Wednesdays between start and end
+                const wednesdays = historicalPrices.getWednesdays(txDate, today);
+                const assetType = historicalPrices.getAssetType(symbol);
+
+                // Get USD rate for crypto conversion
+                const usdRate = pricesCache?.usdToToman || 70000;
+
+                for (const dateStr of wednesdays) {
+                    // Check if we already have this price
+                    const existing = db.getAllHistoricalPricesForDate(dateStr).find(p => p.symbol === symbol);
+                    if (existing) continue;
+
+                    if (assetType === 'iranian') {
+                        const prices = await historicalPrices.fetchIranianHistoricalPrices(dateStr, [symbol]);
+                        if (prices && prices[symbol]) {
+                            db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'gemini');
+                            console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}: ${prices[symbol]}`);
+                        }
+                    } else if (assetType === 'crypto') {
+                        const prices = await historicalPrices.fetchCryptoHistoricalPrices(dateStr, [symbol], usdRate);
+                        if (prices && prices[symbol]) {
+                            db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'coingecko');
+                            console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}: ${prices[symbol]}`);
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[HistoricalPrices] Backfill error:', err.message);
+        }
+    })();
+
     res.json({ success: true });
 });
 
