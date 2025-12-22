@@ -51,8 +51,13 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
             setIsRefreshing(true);
             setPullDistance(THRESHOLD / 2);
             try {
-                await onRefresh();
+                // Add minimum delay so user sees the refresh happening
+                const minDelay = new Promise(resolve => setTimeout(resolve, 500));
+                await Promise.all([onRefresh(), minDelay]);
+            } catch (error) {
+                console.error('Pull to refresh error:', error);
             } finally {
+                // Ensure cleanup happens even on error
                 setIsRefreshing(false);
                 setPullDistance(0);
             }
