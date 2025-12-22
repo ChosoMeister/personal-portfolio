@@ -678,12 +678,17 @@ app.get('/api/prices/refresh', async (req, res) => {
     try {
         const now = Date.now();
         if (pricesCache?.fetchedAt && now - pricesCache.fetchedAt < ONE_HOUR_MS) {
+            const nextAllowedAt = pricesCache.fetchedAt + ONE_HOUR_MS;
+            const remainingMs = nextAllowedAt - now;
+            const remainingMinutes = Math.ceil(remainingMs / 60000);
+            const nextAllowedTime = new Date(nextAllowedAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+
             return res.json({
                 success: true,
                 data: pricesCache,
                 skipped: true,
-                nextAllowedAt: pricesCache.fetchedAt + ONE_HOUR_MS,
-                message: 'آخرین بروزرسانی کمتر از یک ساعت پیش انجام شده است',
+                nextAllowedAt: nextAllowedAt,
+                message: `بروزرسانی بعدی ساعت ${nextAllowedTime} (${remainingMinutes} دقیقه دیگر)`,
             });
         }
 
@@ -870,6 +875,75 @@ app.post('/api/admin/prices/force-refresh', verifyToken, verifyAdmin, async (req
             forcedBy: req.user.username,
             message: 'قیمت‌ها با موفقیت بروزرسانی شدند (فورس)',
         });
+
+        // Background: Backfill historical prices for all user assets
+        (async () => {
+            try {
+                console.log('[Admin Force Refresh] Starting historical price backfill for all user assets...');
+
+                // Get all users and their transactions to find unique asset symbols
+                const allUsers = db.getAllUsers();
+                const uniqueSymbols = new Set();
+
+                for (const user of allUsers) {
+                    const transactions = db.getTransactions(user.username);
+                    for (const tx of transactions) {
+                        uniqueSymbols.add(tx.assetSymbol);
+                    }
+                }
+
+                console.log(`[Admin Force Refresh] Found ${uniqueSymbols.size} unique assets: ${[...uniqueSymbols].join(', ')}`);
+
+                // For each unique symbol, check if we have historical prices and backfill if not
+                const today = new Date();
+                const threeMonthsAgo = new Date();
+                threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+                const startDateStr = threeMonthsAgo.toISOString().split('T')[0];
+                const todayStr = today.toISOString().split('T')[0];
+                const usdRate = priceData.usdToToman || 70000;
+
+                for (const symbol of uniqueSymbols) {
+                    const existingPrices = db.getHistoricalPrices(symbol, startDateStr, todayStr);
+
+                    // If we have less than 4 weeks of data, backfill
+                    if (existingPrices.length < 4) {
+                        console.log(`[Admin Force Refresh] Backfilling historical prices for ${symbol}...`);
+
+                        const wednesdays = historicalPrices.getWednesdays(threeMonthsAgo, today);
+                        const assetType = historicalPrices.getAssetType(symbol);
+
+                        for (const dateStr of wednesdays) {
+                            const existing = db.getAllHistoricalPricesForDate(dateStr).find(p => p.symbol === symbol);
+                            if (existing) continue;
+
+                            try {
+                                if (assetType === 'iranian') {
+                                    const prices = await historicalPrices.fetchIranianHistoricalPrices(dateStr, [symbol]);
+                                    if (prices && prices[symbol]) {
+                                        db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'gemini');
+                                        console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}`);
+                                    }
+                                } else if (assetType === 'crypto') {
+                                    const prices = await historicalPrices.fetchCryptoHistoricalPrices(dateStr, [symbol], usdRate);
+                                    if (prices && prices[symbol]) {
+                                        db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'coingecko');
+                                        console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}`);
+                                    }
+                                }
+                            } catch (err) {
+                                console.error(`[HistoricalPrices] Error fetching ${symbol} for ${dateStr}:`, err.message);
+                            }
+                        }
+                    }
+                }
+
+                console.log('[Admin Force Refresh] Historical price backfill completed.');
+            } catch (err) {
+                console.error('[Admin Force Refresh] Historical backfill error:', err.message);
+            }
+        })();
+
     } catch (error) {
         console.error('Error force refreshing prices:', error);
         res.status(500).json({ message: 'بروزرسانی قیمت‌ها با خطا مواجه شد' });
