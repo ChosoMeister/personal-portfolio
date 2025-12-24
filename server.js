@@ -106,7 +106,7 @@ const PORT = process.env.PORT || 8080;
 const DATA_DIR = process.env.NODE_ENV === 'production' ? '/app/data' : path.join(__dirname, 'data');
 const PRICES_FILE = path.join(DATA_DIR, 'prices.json');
 const FALLBACK_PRICES = { usdToToman: 70000, eurToToman: 74000, gold18ToToman: 4700000 };
-const ONE_HOUR_MS = 60 * 60 * 1000;
+const FIVE_MINUTES_MS = 5 * 60 * 1000; // Rate limit reduced since AI is no longer used
 
 // Memory Cache for prices only (users are now in SQLite)
 let pricesCache = null;
@@ -812,8 +812,8 @@ app.get('/api/prices', (req, res) => {
 app.get('/api/prices/refresh', async (req, res) => {
     try {
         const now = Date.now();
-        if (pricesCache?.fetchedAt && now - pricesCache.fetchedAt < ONE_HOUR_MS) {
-            const nextAllowedAt = pricesCache.fetchedAt + ONE_HOUR_MS;
+        if (pricesCache?.fetchedAt && now - pricesCache.fetchedAt < FIVE_MINUTES_MS) {
+            const nextAllowedAt = pricesCache.fetchedAt + FIVE_MINUTES_MS;
             const remainingMs = nextAllowedAt - now;
             const remainingMinutes = Math.ceil(remainingMs / 60000);
             const nextAllowedTime = new Date(nextAllowedAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
@@ -889,7 +889,7 @@ app.get('/api/prices/refresh', async (req, res) => {
             success: true,
             data: priceData,
             sources,
-            nextAllowedAt: priceData.fetchedAt + ONE_HOUR_MS,
+            nextAllowedAt: priceData.fetchedAt + FIVE_MINUTES_MS,
         });
     } catch (error) {
         console.error('Error refreshing prices:', error);
