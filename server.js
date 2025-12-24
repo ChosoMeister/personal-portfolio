@@ -900,6 +900,17 @@ app.get('/api/prices/refresh', async (req, res) => {
             });
         }
 
+        // Helper to create source display objects
+        const createSource = (type, source) => {
+            const sourceMap = {
+                'primary': { title: 'AlanChand.com', uri: 'https://alanchand.com' },
+                'backup1': { title: 'Telegram TGJU', uri: 'https://t.me/s/tgju' },
+                'backup2': { title: 'Navasan.net', uri: 'https://navasan.net' },
+                'primary+backup1': { title: 'AlanChand + Telegram', uri: 'https://alanchand.com' },
+            };
+            return sourceMap[source] || { title: source, uri: '#' };
+        };
+
         const sources = [];
 
         // Fetch currencies with fallback (Telegram as first backup)
@@ -909,7 +920,7 @@ app.get('/api/prices/refresh', async (req, res) => {
             'currencies'
         );
         const fiatPrices = fiatResult.data;
-        sources.push({ type: 'fiat', source: fiatResult.source });
+        sources.push(createSource('fiat', fiatResult.source));
 
         // Fetch crypto with Telegram as backup
         const cryptoResult = await fetchWithFallback(
@@ -918,7 +929,14 @@ app.get('/api/prices/refresh', async (req, res) => {
             'crypto'
         );
         const cryptoPrices = cryptoResult.data;
-        sources.push({ type: 'crypto', source: cryptoResult.source });
+        sources.push(createSource('crypto', cryptoResult.source));
+
+        // Log if ETC is present
+        if (cryptoPrices.ETC) {
+            console.log(`[DEBUG] ETC price: ${cryptoPrices.ETC}`);
+        } else {
+            console.log(`[DEBUG] ETC NOT in cryptoPrices. Available: ${Object.keys(cryptoPrices).slice(0, 10).join(', ')}...`);
+        }
 
         const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
 
@@ -929,7 +947,7 @@ app.get('/api/prices/refresh', async (req, res) => {
             'gold'
         );
         const goldPrices = goldResult.data;
-        sources.push({ type: 'gold', source: goldResult.source });
+        sources.push(createSource('gold', goldResult.source));
 
         const priceData = {
             usdToToman: usdRate,
