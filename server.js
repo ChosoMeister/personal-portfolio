@@ -422,6 +422,10 @@ const parseTelegramPrices = (text, nameMap) => {
     const prices = {};
     const lines = text.split(/[\n◽️◾️🔸🔹⬜️⬛️□■▫️▪️●○]/);
 
+    // Sort nameMap entries by key length descending to match longer names first
+    // This prevents "اتریوم" matching before "اتریوم کلاسیک"
+    const sortedEntries = Object.entries(nameMap).sort((a, b) => b[0].length - a[0].length);
+
     for (const line of lines) {
         // Match pattern: "name : number ریال" or "name : number تومان"
         const match = line.match(/([^:]+?)\s*:\s*([\d,٬۰-۹]+)\s*(ریال|تومان)/);
@@ -430,9 +434,9 @@ const parseTelegramPrices = (text, nameMap) => {
             let priceStr = match[2];
             const unit = match[3];
 
-            // Find matching symbol
+            // Find matching symbol (longer names checked first)
             let symbol = null;
-            for (const [persianName, sym] of Object.entries(nameMap)) {
+            for (const [persianName, sym] of sortedEntries) {
                 if (name.includes(persianName)) {
                     symbol = sym;
                     break;
