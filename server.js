@@ -307,8 +307,9 @@ const TELEGRAM_CHANNELS = {
     gold: 'https://t.me/s/tgjugold'
 };
 
-// Map Persian names to standard symbols
+// Map Persian names to standard symbols (from Telegram TGJU channels)
 const CRYPTO_NAME_MAP = {
+    // Major cryptos
     'بیت کوین': 'BTC',
     'بیتکوین': 'BTC',
     'اتریوم': 'ETH',
@@ -323,48 +324,96 @@ const CRYPTO_NAME_MAP = {
     'دوج کوین': 'DOGE',
     'شیبا اینو': 'SHIB',
     'شیبا': 'SHIB',
-    'پولکادات': 'DOT',
+    // DeFi & Layer 1
+    'آوالانچ': 'AVAX',
     'اوالانچ': 'AVAX',
+    'پولکادات': 'DOT',
     'چین لینک': 'LINK',
     'استلار': 'XLM',
     'ترون': 'TRX',
     'تون کوین': 'TON',
-    'نات کوین': 'NOT'
+    'نات کوین': 'NOT',
+    'الروند': 'EGLD',
+    'کازماز': 'ATOM',
+    'کازموس': 'ATOM',
+    // More cryptos from Telegram
+    'بیت کوین کش': 'BCH',
+    'مونرو': 'XMR',
+    'زد کش': 'ZEC',
+    'دش': 'DASH',
+    'نئو': 'NEO',
+    'ایاس': 'EOS',
+    'تزوس': 'XTZ',
+    'فایل کوین': 'FIL',
+    'گالا': 'GALA',
+    'سندباکس': 'SAND',
+    'فانتوم': 'FTM',
+    'فلو': 'FLOW',
+    'لوپرینگ': 'LRC',
+    'دیکرید': 'DCR',
+    'ویوز': 'WAVES',
+    'نیو اکونومی': 'XEM',
+    'بیت تورنت': 'BTT',
+    'ماکر': 'MKR',
+    'یونی سواپ': 'UNI',
+    'پنکیک سواپ': 'CAKE'
 };
 
 const CURRENCY_NAME_MAP = {
+    // Major currencies
     'دلار': 'USD',
     'یورو': 'EUR',
     'پوند': 'GBP',
+    'پوند انگلیس': 'GBP',
+    // Middle East
     'درهم امارات': 'AED',
     'درهم': 'AED',
     'لیر ترکیه': 'TRY',
     'لیر': 'TRY',
+    'دینار کویت': 'KWD',
+    'ریال عمان': 'OMR',
+    'دینار عراق': 'IQD',
+    'ریال عربستان': 'SAR',
+    'دینار بحرین': 'BHD',
+    'ریال قطر': 'QAR',
+    // Asia
     'یوان چین': 'CNY',
     'روپیه هند': 'INR',
+    'ین ژاپن': 'JPY',
+    'ین': 'JPY',
+    'رینگیت مالزی': 'MYR',
+    'یینگیت مالزی': 'MYR',
+    // Other
     'دلار کانادا': 'CAD',
     'دلار استرالیا': 'AUD',
+    'دلار نیوزیلند': 'NZD',
     'فرانک سوئیس': 'CHF'
 };
 
 const GOLD_NAME_MAP = {
+    // Gold by Karat
     'طلای ۱۸ عیار': 'GOLD18',
     'طلای 18 عیار': 'GOLD18',
     'طلا ۱۸ عیار': 'GOLD18',
     'طلا 18 عیار': 'GOLD18',
     'گرم طلای ۱۸': 'GOLD18',
     'گرم طلای 18': 'GOLD18',
-    'مثقال طلا': 'MESGHAL',
-    'مثقال': 'MESGHAL',
+    'طلای ۲۴ عیار': 'GOLD24',
+    'طلای 24 عیار': 'GOLD24',
+    'طلای دست دوم': 'GOLD_USED',
+    // Coins
     'سکه امامی': 'COIN_EMAMI',
     'سکه بهار آزادی': 'COIN_BAHAR',
     'نیم سکه': 'HALF_COIN',
     'ربع سکه': 'QUARTER_COIN',
     'سکه گرمی': 'COIN_GERAMI',
+    // Other gold
+    'مثقال طلا': 'MESGHAL',
+    'مثقال': 'MESGHAL',
     'آبشده': 'GOLD_MELTED',
-    'طلای ۲۴ عیار': 'GOLD24',
-    'طلای 24 عیار': 'GOLD24',
-    'اونس طلا': 'GOLD_OZ'
+    'آبشده نقدی': 'GOLD_MELTED',
+    'اونس طلا': 'GOLD_OZ',
+    'نقره': 'SILVER'
 };
 
 // Parse price text from Telegram message format: "◽️ بیت کوین : 117,699,670,000 ریال"
