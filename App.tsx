@@ -366,7 +366,7 @@ export default function App() {
                         rel="noreferrer"
                         className={`px-3 py-2 rounded-xl border text-[9px] font-bold transition-colors shadow-sm ${sourceBadgeTone}`}
                       >
-                        {s.title.slice(0, 30)}
+                        {s.title?.slice(0, 30) || s.uri}
                       </a>
                     ))}
                   </div>
