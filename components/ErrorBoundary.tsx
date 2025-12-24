@@ -54,13 +54,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                             <RefreshCw size={18} />
                             <span>تلاش مجدد</span>
                         </button>
-                        {process.env.NODE_ENV === 'development' && this.state.error && (
+                        {this.state.error && (
                             <details className="mt-6 text-left">
                                 <summary className="text-xs text-[var(--text-muted)] cursor-pointer">
                                     جزئیات خطا
                                 </summary>
                                 <pre className="mt-2 p-3 bg-slate-900 text-rose-400 text-xs rounded-xl overflow-auto max-h-32">
                                     {this.state.error.toString()}
+                                    {'\n'}
+                                    {this.state.error.stack}
                                 </pre>
                             </details>
                         )}
