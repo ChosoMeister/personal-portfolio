@@ -1183,6 +1183,37 @@ app.post('/api/snapshots/backfill', verifyToken, (req, res) => {
     }
 });
 
+// Diagnostic endpoint to check Gemini API status
+app.get('/api/system/status', verifyToken, verifyAdmin, async (req, res) => {
+    const geminiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    const status = {
+        geminiApiConfigured: !!geminiKey,
+        geminiApiKeyPrefix: geminiKey ? geminiKey.substring(0, 8) + '...' : null,
+        historicalPricesEnabled: !!geminiKey,
+        telegramScrapersEnabled: true,
+        priceSourcesAvailable: {
+            primary: 'alanchand.com',
+            backup1: 'Telegram TGJU',
+            backup2: 'tgju.org / navasan.net'
+        },
+        timestamp: new Date().toISOString()
+    };
+
+    // Test Gemini if configured
+    if (geminiKey) {
+        try {
+            const testResult = await historicalPrices.fetchIranianHistoricalPrices('2024-06-01', ['USD']);
+            status.geminiTestResult = testResult ? 'SUCCESS' : 'FAILED (null response)';
+            status.geminiTestData = testResult;
+        } catch (e) {
+            status.geminiTestResult = 'ERROR';
+            status.geminiTestError = e.message;
+        }
+    }
+
+    res.json(status);
+});
+
 // Historical Price Endpoints
 app.get('/api/prices/historical', verifyToken, (req, res) => {
     const { symbol, startDate, endDate } = req.query;

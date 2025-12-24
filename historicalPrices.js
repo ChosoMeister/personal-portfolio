@@ -6,13 +6,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Gemini API setup
-const GEMINI_API_KEY = process.env.VITE_GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 let genAI = null;
 let model = null;
 
 if (GEMINI_API_KEY) {
     genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    console.log('[HistoricalPrices] ✅ Gemini API configured successfully');
+} else {
+    console.log('[HistoricalPrices] ⚠️ Gemini API NOT configured - historical prices for Iranian assets will NOT work');
+    console.log('[HistoricalPrices] Set VITE_GEMINI_API_KEY or GEMINI_API_KEY environment variable');
 }
 
 // Symbol mappings
