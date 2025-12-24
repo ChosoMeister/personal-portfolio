@@ -487,34 +487,54 @@ const fetchTelegramGold = async () => {
     }
 };
 
-// Multi-source fetcher with fallback
+// Multi-source fetcher with smart merging
+// Primary source is tried first, then backups are used to fill in missing prices
 const fetchWithFallback = async (primaryFn, backupFns = [], category = 'unknown') => {
+    let mergedData = {};
+    let primarySource = 'none';
+    let usedBackups = [];
+
     // Try primary source first
     try {
         const result = await primaryFn();
         if (result && Object.keys(result).length > 0) {
-            console.log(`[Prices] ${category}: fetched from primary source`);
-            return { data: result, source: 'primary' };
+            mergedData = { ...result };
+            primarySource = 'primary';
+            console.log(`[Prices] ${category}: fetched ${Object.keys(result).length} from primary`);
         }
     } catch (e) {
         console.log(`[Prices] ${category}: primary failed - ${e.message}`);
     }
 
-    // Try backup sources in order
+    // Always try backup sources to fill in missing assets
     for (let i = 0; i < backupFns.length; i++) {
         try {
             const result = await backupFns[i]();
             if (result && Object.keys(result).length > 0) {
-                console.log(`[Prices] ${category}: fetched from backup source ${i + 1}`);
-                return { data: result, source: `backup${i + 1}` };
+                let addedCount = 0;
+                // Only add prices that don't exist in merged data
+                for (const [symbol, price] of Object.entries(result)) {
+                    if (!mergedData[symbol] && price) {
+                        mergedData[symbol] = price;
+                        addedCount++;
+                    }
+                }
+                if (addedCount > 0) {
+                    usedBackups.push(`backup${i + 1}`);
+                    console.log(`[Prices] ${category}: added ${addedCount} missing from backup ${i + 1}`);
+                }
             }
         } catch (e) {
             console.log(`[Prices] ${category}: backup ${i + 1} failed - ${e.message}`);
         }
     }
 
-    console.log(`[Prices] ${category}: all sources failed`);
-    return { data: {}, source: 'none' };
+    const source = primarySource !== 'none'
+        ? (usedBackups.length > 0 ? `${primarySource}+${usedBackups.join('+')}` : primarySource)
+        : (usedBackups.length > 0 ? usedBackups.join('+') : 'none');
+
+    console.log(`[Prices] ${category}: total ${Object.keys(mergedData).length} prices from ${source}`);
+    return { data: mergedData, source };
 };
 
 app.use(cors({
