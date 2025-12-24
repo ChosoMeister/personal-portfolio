@@ -2,7 +2,7 @@ import { Transaction, PriceData } from '../types';
 
 // تشخیص خودکار URL پایه بر اساس محیط اجرا
 const BASE_URL = window.location.origin;
-const TIMEOUT_MS = 3000;
+const TIMEOUT_MS = 30000; // 30s to allow time for multi-source price fetching
 
 const LOCAL_USERS_KEY = 'gemini_fallback_users';
 const LOCAL_PRICES_KEY = 'gemini_fallback_prices';
