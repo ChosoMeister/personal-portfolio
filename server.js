@@ -465,12 +465,12 @@ const fetchTelegramCrypto = async () => {
         const html = await res.text();
         const $ = cheerio.load(html);
 
-        // Get the most recent message
+        // Get all messages and combine them for better coverage
         const messages = $('.tgme_widget_message_text');
         if (messages.length === 0) return null;
 
-        // Get text from the first (most recent) message
-        const latestText = $(messages[0]).text();
+        // Get text from the LAST (most recent) message
+        const latestText = $(messages[messages.length - 1]).text();
         const prices = parseTelegramPrices(latestText, CRYPTO_NAME_MAP);
 
         console.log(`[Telegram] Crypto: fetched ${Object.keys(prices).length} prices`);
@@ -496,7 +496,8 @@ const fetchTelegramCurrency = async () => {
         const messages = $('.tgme_widget_message_text');
         if (messages.length === 0) return null;
 
-        const latestText = $(messages[0]).text();
+        // Get text from the LAST (most recent) message
+        const latestText = $(messages[messages.length - 1]).text();
         const prices = parseTelegramPrices(latestText, CURRENCY_NAME_MAP);
 
         console.log(`[Telegram] Currency: fetched ${Object.keys(prices).length} prices`);
@@ -522,7 +523,8 @@ const fetchTelegramGold = async () => {
         const messages = $('.tgme_widget_message_text');
         if (messages.length === 0) return null;
 
-        const latestText = $(messages[0]).text();
+        // Get text from the LAST (most recent) message
+        const latestText = $(messages[messages.length - 1]).text();
         const prices = parseTelegramPrices(latestText, GOLD_NAME_MAP);
 
         // Ensure we have GOLD18 alias
