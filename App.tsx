@@ -1,22 +1,19 @@
-import React, { useEffect, useState, useMemo, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useMemo, Suspense, lazy, useCallback } from 'react';
 import { Layout } from './components/Layout';
 import { BottomNav } from './components/BottomNav';
-import { SummaryCard } from './components/SummaryCard';
-import { AllocationChart } from './components/AllocationChart';
-import { AssetRow } from './components/AssetRow';
-import { SummaryCardSkeleton, AssetRowSkeleton } from './components/Skeleton';
-import { EmptyState } from './components/EmptyState';
-import { PullToRefresh } from './components/PullToRefresh';
 import { LoginPage } from './components/LoginPage';
 import { Transaction, PriceData, PortfolioSummary, AssetSummary, getAssetDetail } from './types';
 import { API } from './services/api';
 import * as PriceService from './services/priceService';
-import { Plus, ArrowUpRight, ArrowDownRight, LogOut, Shield, Settings, Sparkles, UserCircle, RefreshCw } from 'lucide-react';
-import { formatToman, formatNumber, formatPercent } from './utils/formatting';
 import * as AuthService from './services/authService';
 import { useToast } from './components/Toast';
-import { TransactionFilter, TransactionFilters, filterTransactions } from './components/TransactionFilter';
+import { TransactionFilters } from './components/TransactionFilter';
 import { useHaptics } from './hooks/useHaptics';
+
+// Imported Tabs
+import { OverviewTab } from './components/tabs/OverviewTab';
+import { HoldingsTab } from './components/tabs/HoldingsTab';
+import { TransactionsTab } from './components/tabs/TransactionsTab';
 
 // Lazy Load Heavy Components
 const TransactionModal = lazy(() => import('./components/TransactionModal').then(module => ({ default: module.TransactionModal })));
@@ -42,23 +39,24 @@ export default function App() {
     dateRange: 'all',
     searchQuery: '',
   });
+
   const { haptic } = useHaptics();
   const { addToast } = useToast();
-  // Pull-to-refresh state
-  const [pullStartY, setPullStartY] = useState(0);
-  const [pullDistance, setPullDistance] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
+
   const [displayName, setDisplayName] = useState('');
+
+  type ThemeOption = 'light' | 'dark' | 'system' | 'amoled' | 'sunset' | 'ocean' | 'forest';
   const [theme, setTheme] = useState<ThemeOption>(() => {
     if (typeof window === 'undefined') return 'light';
     const stored = localStorage.getItem('theme') as ThemeOption | null;
     return stored || 'system';
   });
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark' | 'amoled' | 'sunset' | 'ocean' | 'forest'>('light');
-  const fallbackSources = [
+
+  const fallbackSources = useMemo(() => [
     { title: 'قیمت ارز آلان‌چند', uri: 'https://alanchand.com/currencies-price' },
     { title: 'قیمت رمزارز آلان‌چند', uri: 'https://alanchand.com/crypto-price' },
-  ];
+  ], []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -156,7 +154,7 @@ export default function App() {
     }
   }, [user]);
 
-  const handlePriceUpdate = async () => {
+  const handlePriceUpdate = useCallback(async () => {
     setIsPriceUpdating(true);
     try {
       const result = await PriceService.fetchLivePrices();
@@ -175,30 +173,31 @@ export default function App() {
     } finally {
       setIsPriceUpdating(false);
     }
-  };
+  }, [fallbackSources, addToast]);
 
-  const handleDisplayNameChange = (name: string) => {
+  const handleDisplayNameChange = useCallback((name: string) => {
     setDisplayName(name);
     if (user) {
       localStorage.setItem(`displayName:${user.username}`, name);
     }
-  };
+  }, [user]);
 
-  const handleSaveTransaction = async (t: Transaction) => {
+  const handleSaveTransaction = useCallback(async (t: Transaction) => {
     if (!user) return;
     const txToSave = t.id ? t : { ...t, id: Math.random().toString(36).substr(2, 9) };
     await API.saveTransaction(user.username, txToSave as Transaction);
     const updated = await API.getTransactions(user.username);
     setTransactions(updated);
-  };
+  }, [user]);
 
-  const handleDeleteTransaction = async (id: string) => {
+  const handleDeleteTransaction = useCallback(async (id: string) => {
     if (!user) return;
     await API.deleteTransaction(user.username, id);
     const updated = await API.getTransactions(user.username);
     setTransactions(updated);
-  };
+  }, [user]);
 
+  // Optimized Portfolio Summary Calculation
   const portfolioSummary: PortfolioSummary = useMemo(() => {
     if (!prices || transactions.length === 0) return {
       totalValueToman: 0, totalCostBasisToman: 0, totalPnlToman: 0, totalPnlPercent: 0, assets: []
@@ -206,19 +205,10 @@ export default function App() {
 
     const currentPriceMap: Record<string, number> = {
       GOLD18: prices.gold18ToToman,
+      ...prices.fiatPricesToman,
+      ...prices.cryptoPricesToman,
+      ...prices.goldPricesToman,
     };
-
-    Object.entries(prices.fiatPricesToman || {}).forEach(([symbol, tomanPrice]) => {
-      currentPriceMap[symbol] = tomanPrice;
-    });
-
-    Object.entries(prices.cryptoPricesToman || {}).forEach(([symbol, tomanPrice]) => {
-      currentPriceMap[symbol] = tomanPrice;
-    });
-
-    Object.entries(prices.goldPricesToman || {}).forEach(([symbol, tomanPrice]) => {
-      currentPriceMap[symbol] = tomanPrice;
-    });
 
     const assetsMap: Record<string, AssetSummary> = {};
 
@@ -237,6 +227,9 @@ export default function App() {
       }
       const asset = assetsMap[assetSymbol];
       asset.totalQuantity += quantity;
+
+      // Calculate cost basis - Note: This relies on current USD price for USD purchases.
+      // If historical accuracy is required, store historical exchange rate in transaction.
       let txCostToman = buyCurrency === 'TOMAN' ? (quantity * buyPricePerUnit) + feesToman : (quantity * buyPricePerUnit * prices.usdToToman) + feesToman;
       asset.costBasisToman += txCostToman;
     });
@@ -263,13 +256,6 @@ export default function App() {
     };
   }, [transactions, prices]);
 
-  // Type for ThemeOption as it is needed in state definition but imported from lazy module issues.
-  // We can redfine or trust TS inference or just use string literal if needed.
-  // The original code imported it. I will define it locally to avoid import issues with lazy loading if the file isn't split cleanly.
-  // Actually, 'ThemeOption' is just a type. We can likely import it safely.
-  // Ideally we should move types to types.ts but I will stick to minimal changes.
-  type ThemeOption = 'light' | 'dark' | 'system' | 'amoled' | 'sunset' | 'ocean' | 'forest';
-
   if (!sessionChecked) return null;
   if (!user) return <LoginPage onLoginSuccess={setUser} />;
 
@@ -281,234 +267,66 @@ export default function App() {
     setIsAdminPanelOpen(false);
   };
 
-  const filteredAssets = portfolioSummary.assets.filter(a => a.name.includes(txFilters.searchQuery) || a.symbol.includes(txFilters.searchQuery.toUpperCase()));
-  const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
-  const mutedText = 'text-[color:var(--text-muted)]';
-  const pillTone = 'bg-[color:var(--pill-bg)] text-[color:var(--text-muted)]';
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'];
-  const sourceContainerTone = resolvedTheme === 'dark'
-    ? 'bg-gradient-to-r from-blue-950/50 via-blue-900/40 to-indigo-900/20 border-blue-900 text-blue-100'
-    : 'bg-blue-50/60 border-blue-100 text-blue-600';
-  const sourceBadgeTone = resolvedTheme === 'dark'
-    ? 'bg-blue-900/60 border-blue-800 text-blue-100 hover:bg-blue-800'
-    : 'bg-white border-blue-100 text-blue-600 hover:bg-blue-100';
-
   return (
     <Layout theme={resolvedTheme}>
       <Suspense fallback={<div className="flex items-center justify-center min-h-[50vh]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
         {tab === 'overview' && (
-          <PullToRefresh onRefresh={async () => { await handlePriceUpdate(); }} disabled={isPriceUpdating}>
-            <div className="p-4 space-y-4 animate-in fade-in duration-500 pb-20">
-              <div className="flex justify-between items-center mb-2 px-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                    <Shield size={16} className="text-white" />
-                  </div>
-                  <div>
-                    <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">{displayName || 'پنل مدیریت'}</span>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[10px] text-blue-600 font-bold uppercase">{user.username}</span>
-                      <span className="text-[8px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded hidden sm:flex items-center gap-0.5 border border-violet-200 dark:border-violet-500/20">
-                        <Sparkles size={8} /> Powered by AI
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => { haptic('light'); setIsSettingsDrawerOpen(true); }}
-                    className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
-                    aria-label="تنظیمات حساب"
-                  >
-                    <UserCircle size={18} />
-                  </button>
-                  {user.isAdmin && (
-                    <button onClick={() => setIsAdminPanelOpen(true)} className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}>
-                      <UserCircle size={18} />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => { haptic('medium'); handlePriceUpdate(); }}
-                    disabled={isPriceUpdating}
-                    className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''}`}
-                  >
-                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
-                    <Sparkles size={14} className={isPriceUpdating ? "animate-spin" : ""} />
-                    <span>بروزرسانی هوشمند</span>
-                  </button>
-                </div>
-              </div>
-
-              {loading ? (
-                <SummaryCardSkeleton />
-              ) : (
-                <>
-                  <SummaryCard
-                    summary={portfolioSummary}
-                    isRefreshing={isPriceUpdating}
-                    lastUpdated={prices?.fetchedAt || Date.now()}
-                    onRefresh={handlePriceUpdate}
-                    prices={prices}
-                  />
-                  <AllocationChart summary={portfolioSummary} />
-                </>
-              )}
-
-              {sources.length > 0 && (
-                <div className={`p-4 rounded-3xl border flex flex-col gap-3 mx-1 ${sourceContainerTone}`}>
-                  <span className="text-[10px] font-black uppercase tracking-widest">منابع معتبر قیمت گذاری:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {sources.map((s, i) => (
-                      <a
-                        key={i}
-                        href={s.uri}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`px-3 py-2 rounded-xl border text-[9px] font-bold transition-colors shadow-sm ${sourceBadgeTone}`}
-                      >
-                        {s.title?.slice(0, 30) || s.uri}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                      <ArrowUpRight size={14} />
-                      <span>بهترین عملکرد</span>
-                    </div>
-                    {portfolioSummary.assets[0] ? (
-                      <div className="mt-2">
-                        <div className="font-black text-[color:var(--text-primary)] text-sm truncate">{portfolioSummary.assets[0].name}</div>
-                        <div className="text-emerald-500 text-xs font-black mt-1" dir="ltr">{formatPercent(portfolioSummary.assets[0].pnlPercent)}</div>
-                      </div>
-                    ) : <div className="text-gray-300 text-xs mt-2 font-bold">دیتا موجود نیست</div>}
-                  </div>
-                </div>
-                <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-1.5 text-rose-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                      <ArrowDownRight size={14} />
-                      <span>ضعیف‌ترین عملکرد</span>
-                    </div>
-                    {portfolioSummary.assets.length > 1 ? (
-                      <div className="mt-2">
-                        <div className="font-black text-[color:var(--text-primary)] text-sm truncate">{portfolioSummary.assets[portfolioSummary.assets.length - 1].name}</div>
-                        <div className="text-rose-500 text-xs font-black mt-1" dir="ltr">{formatPercent(portfolioSummary.assets[portfolioSummary.assets.length - 1].pnlPercent)}</div>
-                      </div>
-                    ) : <div className="text-gray-300 text-xs mt-2 font-bold">دیتا موجود نیست</div>}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </PullToRefresh>
+          <OverviewTab
+            displayName={displayName}
+            username={user.username}
+            userIsAdmin={user.isAdmin}
+            loading={loading}
+            isPriceUpdating={isPriceUpdating}
+            portfolioSummary={portfolioSummary}
+            prices={prices}
+            sources={sources}
+            resolvedTheme={resolvedTheme}
+            onRefresh={handlePriceUpdate}
+            onOpenSettings={() => setIsSettingsDrawerOpen(true)}
+            onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
+            haptic={haptic}
+          />
         )}
 
         {tab === 'holdings' && (
-          <div className="animate-in fade-in duration-300 pb-20">
-            <div className="sticky top-0 bg-[color:var(--card-bg)]/80 backdrop-blur-md z-40 px-4 py-4 shadow-sm border-b border-[color:var(--border-color)]">
-              <input
-                type="text"
-                placeholder="جستجو..."
-                value={txFilters.searchQuery}
-                onChange={(e) => setTxFilters(f => ({ ...f, searchQuery: e.target.value }))}
-                className="w-full bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
-              />
-            </div>
-            {filteredAssets.length === 0 ? (
-              <EmptyState
-                type="holdings"
-                title="هنوز دارایی‌ای ثبت نشده"
-                description="با افزودن اولین تراکنش، دارایی‌های شما اینجا نمایش داده می‌شود."
-                actionLabel="افزودن تراکنش"
-                onAction={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
-              />
-            ) : (
-              <div>
-                {filteredAssets.map(asset => (
-                  <AssetRow key={asset.symbol} asset={asset} onClick={() => { haptic('light'); setTab('transactions'); setTxFilters(f => ({ ...f, searchQuery: asset.symbol })); }} />
-                ))}
-              </div>
-            )}
-          </div>
+          <HoldingsTab
+            portfolioSummary={portfolioSummary}
+            filters={txFilters}
+            onSearchChange={(query) => setTxFilters(f => ({ ...f, searchQuery: query }))}
+            onAssetClick={(symbol) => {
+              haptic('light');
+              setTab('transactions');
+              setTxFilters(f => ({ ...f, searchQuery: symbol }));
+            }}
+            onAddTransaction={() => {
+              setEditingTransaction(null);
+              setIsTxModalOpen(true);
+            }}
+            haptic={haptic}
+          />
         )}
 
-
         {tab === 'transactions' && (
-          <div className="p-4 pb-24 animate-in fade-in duration-300">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-black text-[color:var(--text-primary)]">تاریخچه</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { haptic('medium'); setIsSettingsDrawerOpen(true); }}
-                  className="p-2.5 rounded-xl border border-[color:var(--border-color)] bg-[color:var(--muted-surface)] text-[color:var(--text-muted)]"
-                  aria-label="تنظیمات"
-                >
-                  <Settings size={18} />
-                </button>
-                <button
-                  onClick={() => { haptic('success'); setEditingTransaction(null); setIsTxModalOpen(true); }}
-                  className="p-2.5 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white border border-white/10 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95 transition-all"
-                  aria-label="افزودن تراکنش جدید"
-                >
-                  <Plus size={18} strokeWidth={3} />
-                </button>
-                <button onClick={() => { haptic('error'); handleLogout(); }} className="p-2.5 bg-rose-50 rounded-xl text-rose-500"><LogOut size={18} /></button>
-              </div>
-            </div>
-
-            {/* Transaction Filters */}
-            <div className="mb-4">
-              <TransactionFilter
-                filters={txFilters}
-                onFiltersChange={setTxFilters}
-              />
-            </div>
-
-            {transactions.length === 0 ? (
-              <EmptyState
-                type="transactions"
-                title="تراکنشی ثبت نشده"
-                description="با ثبت اولین خرید خود، تاریخچه تراکنش‌ها را اینجا مشاهده کنید."
-                actionLabel="ثبت تراکنش جدید"
-                onAction={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
-              />
-            ) : (() => {
-              const filteredTxs = filterTransactions(
-                [...transactions].reverse(),
-                txFilters,
-                (symbol) => getAssetDetail(symbol).type
-              );
-              return filteredTxs.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-[color:var(--text-muted)] font-bold">تراکنشی با این فیلترها یافت نشد</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredTxs.map(tx => (
-                    <div key={tx.id} onClick={() => { haptic('light'); setEditingTransaction(tx); setIsTxModalOpen(true); }} className={`${cardSurface} p-5 rounded-3xl flex justify-between items-center cursor-pointer`}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-[10px]">{tx.assetSymbol}</div>
-                        <div>
-                          <div className="font-black text-sm text-[color:var(--text-primary)]">{getAssetDetail(tx.assetSymbol).name}</div>
-                          <div className={`text-[10px] font-bold mt-1 ${mutedText}`} dir="ltr">{new Date(tx.buyDateTime).toLocaleDateString('fa-IR')}</div>
-                        </div>
-                      </div>
-                      <div className="text-left font-black text-sm text-[color:var(--text-primary)]" dir="ltr">{formatNumber(tx.quantity)}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
+          <TransactionsTab
+            transactions={transactions}
+            filters={txFilters}
+            onFiltersChange={setTxFilters}
+            onEditTransaction={setEditingTransaction}
+            onOpenSettings={() => setIsSettingsDrawerOpen(true)}
+            onLogout={handleLogout}
+            haptic={haptic}
+          />
         )}
 
         <BottomNav currentTab={tab} onTabChange={setTab} />
 
-        <TransactionModal isOpen={isTxModalOpen} initialData={editingTransaction} onClose={() => setIsTxModalOpen(false)} onSave={handleSaveTransaction} onDelete={handleDeleteTransaction} />
+        <TransactionModal
+          isOpen={isTxModalOpen}
+          initialData={editingTransaction}
+          onClose={() => setIsTxModalOpen(false)}
+          onSave={handleSaveTransaction}
+          onDelete={handleDeleteTransaction}
+        />
         <SettingsDrawer
           isOpen={isSettingsDrawerOpen}
           onClose={() => setIsSettingsDrawerOpen(false)}
