@@ -301,6 +301,192 @@ const fetchNavasanCurrency = async () => {
     }
 };
 
+// Telegram channel scrapers for TGJU prices
+const TELEGRAM_CHANNELS = {
+    crypto: 'https://t.me/s/tgjucryptocurrency',
+    currency: 'https://t.me/s/tgjucurrency',
+    gold: 'https://t.me/s/tgjugold'
+};
+
+// Map Persian names to standard symbols
+const CRYPTO_NAME_MAP = {
+    'بیت کوین': 'BTC',
+    'بیتکوین': 'BTC',
+    'اتریوم': 'ETH',
+    'تتر': 'USDT',
+    'بایننس کوین': 'BNB',
+    'ریپل': 'XRP',
+    'لایت کوین': 'LTC',
+    'کاردانو': 'ADA',
+    'سولانا': 'SOL',
+    'داج کوین': 'DOGE',
+    'دوج کوین': 'DOGE',
+    'شیبا اینو': 'SHIB',
+    'شیبا': 'SHIB',
+    'پولکادات': 'DOT',
+    'اوالانچ': 'AVAX',
+    'چین لینک': 'LINK',
+    'استلار': 'XLM',
+    'ترون': 'TRX',
+    'تون کوین': 'TON',
+    'نات کوین': 'NOT'
+};
+
+const CURRENCY_NAME_MAP = {
+    'دلار': 'USD',
+    'یورو': 'EUR',
+    'پوند': 'GBP',
+    'درهم امارات': 'AED',
+    'درهم': 'AED',
+    'لیر ترکیه': 'TRY',
+    'لیر': 'TRY',
+    'یوان چین': 'CNY',
+    'روپیه هند': 'INR',
+    'دلار کانادا': 'CAD',
+    'دلار استرالیا': 'AUD',
+    'فرانک سوئیس': 'CHF'
+};
+
+const GOLD_NAME_MAP = {
+    'طلای ۱۸ عیار': 'GOLD18',
+    'طلای 18 عیار': 'GOLD18',
+    'طلا ۱۸ عیار': 'GOLD18',
+    'طلا 18 عیار': 'GOLD18',
+    'گرم طلای ۱۸': 'GOLD18',
+    'گرم طلای 18': 'GOLD18',
+    'مثقال طلا': 'MESGHAL',
+    'مثقال': 'MESGHAL',
+    'سکه امامی': 'COIN_EMAMI',
+    'سکه بهار آزادی': 'COIN_BAHAR',
+    'نیم سکه': 'HALF_COIN',
+    'ربع سکه': 'QUARTER_COIN',
+    'سکه گرمی': 'COIN_GERAMI',
+    'آبشده': 'GOLD_MELTED',
+    'طلای ۲۴ عیار': 'GOLD24',
+    'طلای 24 عیار': 'GOLD24',
+    'اونس طلا': 'GOLD_OZ'
+};
+
+// Parse price text from Telegram message format: "◽️ بیت کوین : 117,699,670,000 ریال"
+const parseTelegramPrices = (text, nameMap) => {
+    const prices = {};
+    const lines = text.split(/[\n◽️◾️🔸🔹⬜️⬛️□■▫️▪️●○]/);
+
+    for (const line of lines) {
+        // Match pattern: "name : number ریال" or "name : number تومان"
+        const match = line.match(/([^:]+?)\s*:\s*([\d,٬۰-۹]+)\s*(ریال|تومان)/);
+        if (match) {
+            const name = match[1].trim();
+            let priceStr = match[2];
+            const unit = match[3];
+
+            // Find matching symbol
+            let symbol = null;
+            for (const [persianName, sym] of Object.entries(nameMap)) {
+                if (name.includes(persianName)) {
+                    symbol = sym;
+                    break;
+                }
+            }
+
+            if (symbol) {
+                const price = normalizeNumber(priceStr);
+                // Convert ریال to تومان if needed
+                const priceInToman = unit === 'ریال' ? Math.round(price / 10) : price;
+                if (priceInToman > 0) {
+                    prices[symbol] = priceInToman;
+                }
+            }
+        }
+    }
+
+    return prices;
+};
+
+// Fetch crypto prices from Telegram channel
+const fetchTelegramCrypto = async () => {
+    try {
+        const res = await fetch(TELEGRAM_CHANNELS.crypto, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+        const $ = cheerio.load(html);
+
+        // Get the most recent message
+        const messages = $('.tgme_widget_message_text');
+        if (messages.length === 0) return null;
+
+        // Get text from the first (most recent) message
+        const latestText = $(messages[0]).text();
+        const prices = parseTelegramPrices(latestText, CRYPTO_NAME_MAP);
+
+        console.log(`[Telegram] Crypto: fetched ${Object.keys(prices).length} prices`);
+        return Object.keys(prices).length > 0 ? prices : null;
+    } catch (e) {
+        console.log('[Telegram] Crypto fetch failed:', e.message);
+        return null;
+    }
+};
+
+// Fetch currency prices from Telegram channel
+const fetchTelegramCurrency = async () => {
+    try {
+        const res = await fetch(TELEGRAM_CHANNELS.currency, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+        const $ = cheerio.load(html);
+
+        const messages = $('.tgme_widget_message_text');
+        if (messages.length === 0) return null;
+
+        const latestText = $(messages[0]).text();
+        const prices = parseTelegramPrices(latestText, CURRENCY_NAME_MAP);
+
+        console.log(`[Telegram] Currency: fetched ${Object.keys(prices).length} prices`);
+        return Object.keys(prices).length > 0 ? prices : null;
+    } catch (e) {
+        console.log('[Telegram] Currency fetch failed:', e.message);
+        return null;
+    }
+};
+
+// Fetch gold prices from Telegram channel
+const fetchTelegramGold = async () => {
+    try {
+        const res = await fetch(TELEGRAM_CHANNELS.gold, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+        const $ = cheerio.load(html);
+
+        const messages = $('.tgme_widget_message_text');
+        if (messages.length === 0) return null;
+
+        const latestText = $(messages[0]).text();
+        const prices = parseTelegramPrices(latestText, GOLD_NAME_MAP);
+
+        // Ensure we have GOLD18 alias
+        if (prices['18AYAR'] && !prices.GOLD18) prices.GOLD18 = prices['18AYAR'];
+        if (prices.GOLD18 && !prices['18AYAR']) prices['18AYAR'] = prices.GOLD18;
+
+        console.log(`[Telegram] Gold: fetched ${Object.keys(prices).length} prices`);
+        return Object.keys(prices).length > 0 ? prices : null;
+    } catch (e) {
+        console.log('[Telegram] Gold fetch failed:', e.message);
+        return null;
+    }
+};
+
 // Multi-source fetcher with fallback
 const fetchWithFallback = async (primaryFn, backupFns = [], category = 'unknown') => {
     // Try primary source first
@@ -694,31 +880,30 @@ app.get('/api/prices/refresh', async (req, res) => {
 
         const sources = [];
 
-        // Fetch currencies with fallback
+        // Fetch currencies with fallback (Telegram as first backup)
         const fiatResult = await fetchWithFallback(
             fetchCurrencyBoard,
-            [fetchNavasanCurrency],
+            [fetchTelegramCurrency, fetchNavasanCurrency],
             'currencies'
         );
         const fiatPrices = fiatResult.data;
         sources.push({ type: 'fiat', source: fiatResult.source });
 
-        // Fetch crypto (no fallback needed, alanchand is reliable for this)
-        let cryptoPrices = {};
-        try {
-            cryptoPrices = await fetchCryptoBoard();
-            sources.push({ type: 'crypto', source: 'alanchand' });
-        } catch (e) {
-            console.log('[Prices] crypto fetch failed:', e.message);
-            sources.push({ type: 'crypto', source: 'none' });
-        }
+        // Fetch crypto with Telegram as backup
+        const cryptoResult = await fetchWithFallback(
+            fetchCryptoBoard,
+            [fetchTelegramCrypto],
+            'crypto'
+        );
+        const cryptoPrices = cryptoResult.data;
+        sources.push({ type: 'crypto', source: cryptoResult.source });
 
         const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
 
-        // Fetch gold with fallback
+        // Fetch gold with fallback (Telegram as first backup)
         const goldResult = await fetchWithFallback(
             () => fetchGoldBoard(usdRate),
-            [fetchTgjuGold],
+            [fetchTelegramGold, fetchTgjuGold],
             'gold'
         );
         const goldPrices = goldResult.data;
@@ -799,31 +984,30 @@ app.post('/api/admin/prices/force-refresh', verifyToken, verifyAdmin, async (req
         console.log(`[Admin] Force price refresh triggered by ${req.user.username}`);
         const sources = [];
 
-        // Fetch currencies with fallback
+        // Fetch currencies with fallback (Telegram as first backup)
         const fiatResult = await fetchWithFallback(
             fetchCurrencyBoard,
-            [fetchNavasanCurrency],
+            [fetchTelegramCurrency, fetchNavasanCurrency],
             'currencies'
         );
         const fiatPrices = fiatResult.data;
         sources.push({ type: 'fiat', source: fiatResult.source });
 
-        // Fetch crypto (no fallback needed, alanchand is reliable for this)
-        let cryptoPrices = {};
-        try {
-            cryptoPrices = await fetchCryptoBoard();
-            sources.push({ type: 'crypto', source: 'alanchand' });
-        } catch (e) {
-            console.log('[Prices] crypto fetch failed:', e.message);
-            sources.push({ type: 'crypto', source: 'none' });
-        }
+        // Fetch crypto with Telegram as backup
+        const cryptoResult = await fetchWithFallback(
+            fetchCryptoBoard,
+            [fetchTelegramCrypto],
+            'crypto'
+        );
+        const cryptoPrices = cryptoResult.data;
+        sources.push({ type: 'crypto', source: cryptoResult.source });
 
         const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
 
-        // Fetch gold with fallback
+        // Fetch gold with fallback (Telegram as first backup)
         const goldResult = await fetchWithFallback(
             () => fetchGoldBoard(usdRate),
-            [fetchTgjuGold],
+            [fetchTelegramGold, fetchTgjuGold],
             'gold'
         );
         const goldPrices = goldResult.data;
