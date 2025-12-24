@@ -11,7 +11,6 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import * as db from './database.js';
-import * as historicalPrices from './historicalPrices.js';
 
 // JWT Secrets from environment variables
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'dev-access-secret-change-in-production';
@@ -797,56 +796,6 @@ app.post('/api/transactions', verifyToken, async (req, res) => {
     username = username.toLowerCase();
     db.saveTransaction(username, transaction);
 
-    // Trigger background backfill for historical prices for this asset
-    // This runs asynchronously so it doesn't block the response
-    (async () => {
-        try {
-            const symbol = transaction.assetSymbol;
-            const txDate = new Date(transaction.buyDateTime);
-            const today = new Date();
-
-            // Get date range from transaction to today
-            const startDateStr = txDate.toISOString().split('T')[0];
-            const todayStr = today.toISOString().split('T')[0];
-
-            // Check if we already have historical prices for this symbol
-            const existingPrices = db.getHistoricalPrices(symbol, startDateStr, todayStr);
-
-            if (existingPrices.length === 0) {
-                console.log(`[HistoricalPrices] Triggering backfill for ${symbol} from ${startDateStr} to ${todayStr}`);
-
-                // Get Wednesdays between start and end
-                const wednesdays = historicalPrices.getWednesdays(txDate, today);
-                const assetType = historicalPrices.getAssetType(symbol);
-
-                // Get USD rate for crypto conversion
-                const usdRate = pricesCache?.usdToToman || 70000;
-
-                for (const dateStr of wednesdays) {
-                    // Check if we already have this price
-                    const existing = db.getAllHistoricalPricesForDate(dateStr).find(p => p.symbol === symbol);
-                    if (existing) continue;
-
-                    if (assetType === 'iranian') {
-                        const prices = await historicalPrices.fetchIranianHistoricalPrices(dateStr, [symbol]);
-                        if (prices && prices[symbol]) {
-                            db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'gemini');
-                            console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}: ${prices[symbol]}`);
-                        }
-                    } else if (assetType === 'crypto') {
-                        const prices = await historicalPrices.fetchCryptoHistoricalPrices(dateStr, [symbol], usdRate);
-                        if (prices && prices[symbol]) {
-                            db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'coingecko');
-                            console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}: ${prices[symbol]}`);
-                        }
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('[HistoricalPrices] Backfill error:', err.message);
-        }
-    })();
-
     res.json({ success: true });
 });
 
@@ -934,19 +883,7 @@ app.get('/api/prices/refresh', async (req, res) => {
             console.error('Error persisting refreshed prices:', err);
         }
 
-        // Auto-save today's prices to historical_prices
-        const today = new Date().toISOString().split('T')[0];
-        try {
-            const allPrices = { ...fiatPrices, ...goldPrices, ...cryptoPrices };
-            for (const [symbol, price] of Object.entries(allPrices)) {
-                if (price && typeof price === 'number') {
-                    db.saveHistoricalPrice(symbol, today, price, 'live');
-                }
-            }
-            console.log(`[Prices] Saved ${Object.keys(allPrices).length} prices to historical for ${today}`);
-        } catch (err) {
-            console.error('Error saving historical prices:', err);
-        }
+
 
         res.json({
             success: true,
@@ -1038,20 +975,6 @@ app.post('/api/admin/prices/force-refresh', verifyToken, verifyAdmin, async (req
             console.error('Error persisting refreshed prices:', err);
         }
 
-        // Auto-save today's prices to historical_prices
-        const today = new Date().toISOString().split('T')[0];
-        try {
-            const allPrices = { ...fiatPrices, ...goldPrices, ...cryptoPrices };
-            for (const [symbol, price] of Object.entries(allPrices)) {
-                if (price && typeof price === 'number') {
-                    db.saveHistoricalPrice(symbol, today, price, 'live');
-                }
-            }
-            console.log(`[Prices] Saved ${Object.keys(allPrices).length} prices to historical for ${today}`);
-        } catch (err) {
-            console.error('Error saving historical prices:', err);
-        }
-
         res.json({
             success: true,
             data: priceData,
@@ -1059,74 +982,6 @@ app.post('/api/admin/prices/force-refresh', verifyToken, verifyAdmin, async (req
             forcedBy: req.user.username,
             message: 'قیمت‌ها با موفقیت بروزرسانی شدند (فورس)',
         });
-
-        // Background: Backfill historical prices for all user assets
-        (async () => {
-            try {
-                console.log('[Admin Force Refresh] Starting historical price backfill for all user assets...');
-
-                // Get all users and their transactions to find unique asset symbols
-                const allUsers = db.getAllUsers();
-                const uniqueSymbols = new Set();
-
-                for (const user of allUsers) {
-                    const transactions = db.getTransactions(user.username);
-                    for (const tx of transactions) {
-                        uniqueSymbols.add(tx.assetSymbol);
-                    }
-                }
-
-                console.log(`[Admin Force Refresh] Found ${uniqueSymbols.size} unique assets: ${[...uniqueSymbols].join(', ')}`);
-
-                // For each unique symbol, check if we have historical prices and backfill if not
-                const today = new Date();
-                const threeMonthsAgo = new Date();
-                threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-                const startDateStr = threeMonthsAgo.toISOString().split('T')[0];
-                const todayStr = today.toISOString().split('T')[0];
-                const usdRate = priceData.usdToToman || 70000;
-
-                for (const symbol of uniqueSymbols) {
-                    const existingPrices = db.getHistoricalPrices(symbol, startDateStr, todayStr);
-
-                    // If we have less than 4 weeks of data, backfill
-                    if (existingPrices.length < 4) {
-                        console.log(`[Admin Force Refresh] Backfilling historical prices for ${symbol}...`);
-
-                        const wednesdays = historicalPrices.getWednesdays(threeMonthsAgo, today);
-                        const assetType = historicalPrices.getAssetType(symbol);
-
-                        for (const dateStr of wednesdays) {
-                            const existing = db.getAllHistoricalPricesForDate(dateStr).find(p => p.symbol === symbol);
-                            if (existing) continue;
-
-                            try {
-                                if (assetType === 'iranian') {
-                                    const prices = await historicalPrices.fetchIranianHistoricalPrices(dateStr, [symbol]);
-                                    if (prices && prices[symbol]) {
-                                        db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'gemini');
-                                        console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}`);
-                                    }
-                                } else if (assetType === 'crypto') {
-                                    const prices = await historicalPrices.fetchCryptoHistoricalPrices(dateStr, [symbol], usdRate);
-                                    if (prices && prices[symbol]) {
-                                        db.saveHistoricalPrice(symbol, dateStr, prices[symbol], 'coingecko');
-                                        console.log(`[HistoricalPrices] Saved ${symbol} for ${dateStr}`);
-                                    }
-                                }
-                            } catch (err) {
-                                console.error(`[HistoricalPrices] Error fetching ${symbol} for ${dateStr}:`, err.message);
-                            }
-                        }
-                    }
-                }
-
-                console.log('[Admin Force Refresh] Historical price backfill completed.');
-            } catch (err) {
-                console.error('[Admin Force Refresh] Historical backfill error:', err.message);
-            }
-        })();
 
     } catch (error) {
         console.error('Error force refreshing prices:', error);
@@ -1183,148 +1038,6 @@ app.post('/api/snapshots/backfill', verifyToken, (req, res) => {
     }
 });
 
-// Diagnostic endpoint to check Gemini API status
-app.get('/api/system/status', verifyToken, verifyAdmin, async (req, res) => {
-    const geminiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    const status = {
-        geminiApiConfigured: !!geminiKey,
-        geminiApiKeyPrefix: geminiKey ? geminiKey.substring(0, 8) + '...' : null,
-        historicalPricesEnabled: !!geminiKey,
-        telegramScrapersEnabled: true,
-        priceSourcesAvailable: {
-            primary: 'alanchand.com',
-            backup1: 'Telegram TGJU',
-            backup2: 'tgju.org / navasan.net'
-        },
-        timestamp: new Date().toISOString()
-    };
-
-    // Test Gemini if configured
-    if (geminiKey) {
-        try {
-            const testResult = await historicalPrices.fetchIranianHistoricalPrices('2024-06-01', ['USD']);
-            status.geminiTestResult = testResult ? 'SUCCESS' : 'FAILED (null response)';
-            status.geminiTestData = testResult;
-        } catch (e) {
-            status.geminiTestResult = 'ERROR';
-            status.geminiTestError = e.message;
-        }
-    }
-
-    res.json(status);
-});
-
-// Historical Price Endpoints
-app.get('/api/prices/historical', verifyToken, (req, res) => {
-    const { symbol, startDate, endDate } = req.query;
-
-    if (!symbol) {
-        return res.status(400).json({ message: 'Symbol required' });
-    }
-
-    const prices = db.getHistoricalPrices(symbol, startDate, endDate);
-    res.json(prices);
-});
-
-app.post('/api/prices/backfill-historical', verifyToken, async (req, res) => {
-    try {
-        const { symbols, startDate } = req.body;
-
-        if (!symbols || !symbols.length) {
-            return res.status(400).json({ message: 'Symbols required' });
-        }
-
-        const start = startDate ? new Date(startDate) : new Date('2024-01-01');
-        const end = new Date();
-
-        // Get Wednesdays between start and end
-        const wednesdays = historicalPrices.getWednesdays(start, end);
-
-        // Separate Iranian and crypto assets
-        const iranianSymbols = symbols.filter(s => historicalPrices.getAssetType(s) === 'iranian');
-        const cryptoSymbols = symbols.filter(s => historicalPrices.getAssetType(s) === 'crypto');
-
-        let savedCount = 0;
-        let skippedCount = 0;
-
-        // Process each Wednesday
-        for (const dateStr of wednesdays) {
-            // Skip if we already have prices for this date
-            const existingPrices = db.getAllHistoricalPricesForDate(dateStr);
-            const existingSymbols = new Set(existingPrices.map(p => p.symbol));
-
-            // Iranian assets - fetch from Gemini if needed
-            const missingIranian = iranianSymbols.filter(s => !existingSymbols.has(s));
-            if (missingIranian.length > 0) {
-                const iranPrices = await historicalPrices.fetchIranianHistoricalPrices(dateStr, missingIranian);
-                if (iranPrices) {
-                    for (const [symbol, price] of Object.entries(iranPrices)) {
-                        if (price && !existingSymbols.has(symbol)) {
-                            db.saveHistoricalPrice(symbol, dateStr, price, 'gemini');
-                            savedCount++;
-                        }
-                    }
-                }
-            } else {
-                skippedCount += iranianSymbols.length;
-            }
-
-            // Crypto assets - fetch from CoinGecko if needed
-            const missingCrypto = cryptoSymbols.filter(s => !existingSymbols.has(s));
-            if (missingCrypto.length > 0) {
-                // Get USD rate for this date (from existing data or estimate)
-                const usdPrice = existingPrices.find(p => p.symbol === 'USD')?.priceToman || 70000;
-                const cryptoPrices = await historicalPrices.fetchCryptoHistoricalPrices(dateStr, missingCrypto, usdPrice);
-                if (cryptoPrices) {
-                    for (const [symbol, price] of Object.entries(cryptoPrices)) {
-                        if (price && !existingSymbols.has(symbol)) {
-                            db.saveHistoricalPrice(symbol, dateStr, price, 'coingecko');
-                            savedCount++;
-                        }
-                    }
-                }
-            } else {
-                skippedCount += cryptoSymbols.length;
-            }
-        }
-
-        res.json({
-            success: true,
-            message: `Backfill completed`,
-            datesProcessed: wednesdays.length,
-            pricesSaved: savedCount,
-            pricesSkipped: skippedCount
-        });
-    } catch (error) {
-        console.error('Backfill error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// Save today's prices to historical_prices when prices are refreshed
-app.post('/api/prices/save-today', verifyToken, async (req, res) => {
-    try {
-        const today = new Date().toISOString().split('T')[0];
-        const { prices } = req.body;
-
-        if (!prices || typeof prices !== 'object') {
-            return res.status(400).json({ message: 'Prices object required' });
-        }
-
-        let savedCount = 0;
-        for (const [symbol, price] of Object.entries(prices)) {
-            if (price && typeof price === 'number') {
-                db.saveHistoricalPrice(symbol, today, price, 'live');
-                savedCount++;
-            }
-        }
-
-        res.json({ success: true, savedCount, date: today });
-    } catch (error) {
-        console.error('Save today prices error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
 // SPA Routing: ارسال تمام درخواست‌های ناشناخته به ایندکس
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));

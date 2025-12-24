@@ -1,10 +1,5 @@
 # Build stage
 FROM node:20-slim AS builder
-ARG VITE_GEMINI_API_KEY
-# Single source of truth for the Gemini API key; mirrors to legacy names for compatibility
-ENV VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
-ENV GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
-ENV API_KEY=${VITE_GEMINI_API_KEY}
 WORKDIR /app
 
 # Install build tools required for bcrypt native compilation
@@ -45,7 +40,6 @@ RUN apt-get purge -y python3 make g++ && apt-get autoremove -y
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js ./server.js
 COPY --from=builder /app/database.js ./database.js
-COPY --from=builder /app/historicalPrices.js ./historicalPrices.js
 COPY --from=builder /app/services ./services
 COPY --from=builder /app/utils ./utils
 
