@@ -38,13 +38,10 @@ RUN apt-get purge -y python3 make g++ && apt-get autoremove -y
 
 # Copy compiled assets and server files
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server.js ./server.js
-COPY --from=builder /app/database.js ./database.js
-COPY --from=builder /app/services ./services
-COPY --from=builder /app/utils ./utils
+COPY --from=builder /app/server ./server
 
 # Ensure data directory exists for persistence mounts
 RUN mkdir -p /app/data
 
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["node", "server/index.js"]

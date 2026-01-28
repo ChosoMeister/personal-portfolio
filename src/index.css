@@ -1,0 +1,211 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Liquid Glass Palette */
+  --app-bg: #e8eef5;
+  /* Slightly cooler/darker background for contrast */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --glass-border: rgba(0, 0, 0, 0.12);
+  /* Darker border for better light mode definition */
+  --glass-surface: rgba(255, 255, 255, 0.85);
+  /* Slightly less opaque */
+  --accent-primary: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.5);
+  --danger: #ef4444;
+  --success: #22c55e;
+}
+
+body.dark {
+  --app-bg: #050914;
+  /* Deep Dark Blue/Black */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  /* Lighter secondary for better dark mode reading */
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-surface: rgba(10, 20, 40, 0.8);
+  /* Darker surface */
+  --accent-primary: #60a5fa;
+  --accent-glow: rgba(96, 165, 250, 0.4);
+}
+
+[data-theme='amoled'] {
+  --app-bg: #000000;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-surface: rgba(20, 20, 20, 0.9);
+  --accent-primary: #ffff00;
+  /* Yellow accent for amoled */
+  --accent-glow: rgba(255, 255, 0, 0.3);
+}
+
+[data-theme='sunset'] {
+  --app-bg: #2a0a2e;
+  /* Dark Purple */
+  --text-primary: #fff0f5;
+  --text-secondary: #eebbcb;
+  --glass-border: rgba(255, 200, 200, 0.2);
+  --glass-surface: rgba(60, 20, 60, 0.7);
+  --accent-primary: #fb923c;
+  /* Orange */
+  --accent-glow: rgba(251, 146, 60, 0.4);
+}
+
+[data-theme='ocean'] {
+  --app-bg: #0c1a2b;
+  /* Deep Sea Blue */
+  --text-primary: #e0f2fe;
+  --text-secondary: #94b8d6;
+  --glass-border: rgba(100, 200, 255, 0.2);
+  --glass-surface: rgba(10, 30, 50, 0.75);
+  --accent-primary: #22d3ee;
+  /* Cyan */
+  --accent-glow: rgba(34, 211, 238, 0.4);
+}
+
+[data-theme='forest'] {
+  --app-bg: #051a10;
+  /* Dark Green */
+  --text-primary: #f0fdf4;
+  --text-secondary: #86efac;
+  --glass-border: rgba(100, 255, 150, 0.2);
+  --glass-surface: rgba(10, 30, 20, 0.75);
+  --accent-primary: #4ade80;
+  /* Green */
+  --accent-glow: rgba(74, 222, 128, 0.4);
+}
+
+body {
+  font-family: 'Vazirmatn', sans-serif;
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(249, 115, 22, 0.1) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  overscroll-behavior-y: none;
+  min-height: 100vh;
+  transition: background-color 0.5s ease;
+}
+
+/* Ensure root takes full viewport for stable referencing */
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Prevent body scroll, handle in app-container */
+}
+
+/* App Container - Fixed dimensions for consistent layout */
+.app-container {
+  width: 100%;
+  /* Force full width up to max-width */
+  max-width: 480px;
+  min-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+  height: 100vh;
+  height: 100dvh;
+  /* Dynamic viewport height for mobile */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: var(--glass-surface);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 640px) {
+  .app-container {
+    border-left: 1px solid var(--glass-border);
+    border-right: 1px solid var(--glass-border);
+  }
+}
+
+/* Tab Content - Consistent sizing */
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 6rem;
+  /* Space for bottom nav */
+}
+
+/* Glass Panel Utility */
+.glass-panel {
+  background: var(--glass-surface);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 5px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.1);
+}
+
+body.dark .glass-panel {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Floating Action Button (Glass) */
+.glass-fab {
+  background: rgba(59, 130, 246, 0.1);
+  /* Translucent blue */
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: var(--accent-primary);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
+}
+
+.glass-fab:active {
+  transform: scale(0.95);
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: -0.02em;
+}
+
+/* Animations */
+@keyframes coin-rotate {
+  0% {
+    transform: rotateY(0);
+  }
+
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+.animate-coin {
+  animation: coin-rotate 3s ease-in-out infinite;
+}
+
+/* Hiding Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

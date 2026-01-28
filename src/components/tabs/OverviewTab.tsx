@@ -39,30 +39,34 @@ const OverviewTabComponent: React.FC<OverviewTabProps> = ({
     onOpenAdminPanel,
     haptic
 }) => {
-    const cardSurface = 'bg-[var(--card-bg)] border border-[color:var(--border-color)] text-[color:var(--text-primary)]';
-    const sourceContainerTone = resolvedTheme === 'dark'
-        ? 'bg-gradient-to-r from-blue-950/50 via-blue-900/40 to-indigo-900/20 border-blue-900 text-blue-100'
-        : 'bg-blue-50/60 border-blue-100 text-blue-600';
-    const sourceBadgeTone = resolvedTheme === 'dark'
-        ? 'bg-blue-900/60 border-blue-800 text-blue-100 hover:bg-blue-800'
-        : 'bg-white border-blue-100 text-blue-600 hover:bg-blue-100';
+    const cardSurface = 'glass-panel text-[var(--text-primary)] transition-all hover:border-[var(--glass-border)] hover:shadow-lg';
+    const sourceContainerTone = 'glass-panel mt-4';
+    const sourceBadgeTone = 'bg-[var(--glass-border)]/10 border border-[var(--glass-border)] text-[var(--accent-primary)] hover:bg-[var(--glass-border)]/20';
+
+    const [showSources, setShowSources] = React.useState(false);
+
+    const handleRefresh = async () => {
+        haptic('medium');
+        setShowSources(true);
+        await onRefresh();
+    };
 
     return (
-        <PullToRefresh onRefresh={onRefresh} disabled={isPriceUpdating}>
-            <div className="p-4 space-y-4 animate-in fade-in duration-500 pb-20">
-                <div className="flex justify-between items-center mb-2 px-1">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                            <Shield size={16} className="text-white" />
+        <PullToRefresh onRefresh={handleRefresh} disabled={isPriceUpdating}>
+            <div className="p-4 pb-20 space-y-6 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                            <Shield size={20} className="text-white" />
                         </div>
                         <div>
-                            <span className="font-black text-[color:var(--text-primary)] text-lg tracking-tight block leading-none">
+                            <span className="font-black text-[var(--text-primary)] text-xl tracking-tight block leading-none">
                                 {displayName || 'پنل مدیریت'}
                             </span>
-                            <div className="flex items-center gap-1 mt-1">
-                                <span className="text-[10px] text-blue-600 font-bold uppercase">{username}</span>
-                                <span className="text-[8px] bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 px-1.5 py-0.5 rounded hidden sm:flex items-center gap-0.5 border border-violet-200 dark:border-violet-500/20">
-                                    <Sparkles size={8} /> Powered by AI
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                                <span className="text-[11px] text-[var(--accent-primary)] font-bold uppercase tracking-wide">{username}</span>
+                                <span className="text-[9px] bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded-lg border border-indigo-500/20 hidden sm:flex items-center gap-1">
+                                    <Sparkles size={8} /> AI Powered
                                 </span>
                             </div>
                         </div>
@@ -73,31 +77,28 @@ const OverviewTabComponent: React.FC<OverviewTabProps> = ({
                                 haptic('medium');
                                 onOpenSettings();
                             }}
-                            className={`${cardSurface} p-2.5 rounded-xl hover:opacity-90 transition-all`}
+                            className="bg-[var(--glass-border)]/10 border border-[var(--glass-border)] p-2.5 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--glass-border)]/20 transition-all active:scale-95"
                             aria-label="تنظیمات حساب"
                         >
-                            <UserCircle size={18} />
+                            <UserCircle size={20} />
                         </button>
                         {userIsAdmin && (
                             <button
                                 onClick={onOpenAdminPanel}
-                                className={`${cardSurface} p-2.5 rounded-xl text-amber-500 hover:opacity-90 transition-all`}
+                                className="bg-[var(--glass-border)]/10 border border-[var(--glass-border)] p-2.5 rounded-xl text-amber-500 hover:bg-[var(--glass-border)]/20 transition-all active:scale-95"
                             >
-                                <UserCircle size={18} />
+                                <UserCircle size={20} />
                             </button>
                         )}
                         <button
-                            onClick={() => {
-                                haptic('medium');
-                                onRefresh();
-                            }}
+                            onClick={handleRefresh}
                             disabled={isPriceUpdating}
-                            className={`relative overflow-hidden group flex items-center gap-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''
+                            className={`relative overflow-hidden group flex items-center gap-2 bg-[var(--accent-primary)] text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 active:scale-95 transition-all ${isPriceUpdating ? 'animate-pulse opacity-80' : ''
                                 }`}
                         >
                             <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
                             <Sparkles size={14} className={isPriceUpdating ? 'animate-spin' : ''} />
-                            <span>بروزرسانی هوشمند</span>
+                            <span>بروزرسانی</span>
                         </button>
                     </div>
                 </div>
@@ -110,16 +111,17 @@ const OverviewTabComponent: React.FC<OverviewTabProps> = ({
                             summary={portfolioSummary}
                             isRefreshing={isPriceUpdating}
                             lastUpdated={prices?.fetchedAt || Date.now()}
-                            onRefresh={onRefresh}
+                            onRefresh={handleRefresh}
                             prices={prices}
                         />
                         <AllocationChart summary={portfolioSummary} />
                     </>
                 )}
 
-                {sources.length > 0 && (
-                    <div className={`p-4 rounded-3xl border flex flex-col gap-3 mx-1 ${sourceContainerTone}`}>
-                        <span className="text-[10px] font-black uppercase tracking-widest">
+                {/* Sources: Shown when explicitly updated */}
+                {showSources && sources.length > 0 && (
+                    <div className={`p-4 rounded-[24px] flex flex-col gap-3 ${sourceContainerTone} animate-in slide-in-from-top-2 duration-300`}>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                             منابع معتبر قیمت گذاری:
                         </span>
                         <div className="flex flex-wrap gap-2">
@@ -129,7 +131,7 @@ const OverviewTabComponent: React.FC<OverviewTabProps> = ({
                                     href={s.uri}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className={`px-3 py-2 rounded-xl border text-[9px] font-bold transition-colors shadow-sm ${sourceBadgeTone}`}
+                                    className={`px-3 py-2 rounded-xl text-[10px] font-bold transition-all ${sourceBadgeTone}`}
                                 >
                                     {s.title?.slice(0, 30) || s.uri}
                                 </a>
@@ -138,8 +140,8 @@ const OverviewTabComponent: React.FC<OverviewTabProps> = ({
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
-                    <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className={`${cardSurface} p-5 rounded-[28px] flex flex-col justify-between h-36 relative overflow-hidden group`}>
                         <div className="relative z-10">
                             <div className="flex items-center gap-1.5 text-emerald-600 font-black text-[10px] uppercase tracking-wider mb-1">
                                 <ArrowUpRight size={14} />
@@ -159,7 +161,7 @@ const OverviewTabComponent: React.FC<OverviewTabProps> = ({
                             )}
                         </div>
                     </div>
-                    <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group`}>
+                    <div className={`${cardSurface} p-5 rounded-[28px] shadow-sm flex flex-col justify-between h-36 relative overflow-hidden group`}>
                         <div className="relative z-10">
                             <div className="flex items-center gap-1.5 text-rose-600 font-black text-[10px] uppercase tracking-wider mb-1">
                                 <ArrowDownRight size={14} />

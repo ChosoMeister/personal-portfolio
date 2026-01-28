@@ -51,7 +51,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             </h3>
 
             {/* Description */}
-            <p className="text-[color:var(--text-muted)] text-sm max-w-[280px] leading-relaxed mb-8">
+            <p className="text-[color:var(--text-muted)] text-sm max-w-[80%] leading-relaxed mb-8">
                 {description}
             </p>
 

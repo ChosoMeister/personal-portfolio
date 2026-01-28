@@ -67,7 +67,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
     if (!quantity || !price) return;
 
     onSave({
-      ...(initialData?.id ? { id: initialData.id } : {}),
+      id: initialData?.id || `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       assetSymbol,
       quantity: parseQuantityInput(quantity),
       buyPricePerUnit: parseCurrencyInput(price),

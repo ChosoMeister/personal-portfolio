@@ -30,13 +30,13 @@ const AssetRowComponent: React.FC<AssetRowProps> = ({ asset, transactions = [], 
   };
 
   return (
-    <div className="border-b border-[color:var(--border-color)]">
+    <div className="mb-3 rounded-2xl glass-panel transition-all duration-300 hover:shadow-lg hover:scale-[1.01] active:scale-[0.98]">
       <div
         onClick={handleRowClick}
-        className="stagger-item hover-lift spring-smooth bg-[var(--card-bg)] text-[color:var(--text-primary)] p-5 flex items-center justify-between active:bg-[color:var(--muted-surface)] cursor-pointer group"
+        className="cursor-pointer p-4 flex items-center justify-between"
       >
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[color:var(--muted-surface)] p-1.5 border border-[color:var(--border-color)] flex items-center justify-center overflow-hidden shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+          <div className="w-12 h-12 rounded-xl bg-[var(--glass-border)] border border-[var(--glass-border)] flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
             <img
               src={iconUrl}
               alt={asset.symbol}
@@ -46,19 +46,18 @@ const AssetRowComponent: React.FC<AssetRowProps> = ({ asset, transactions = [], 
             />
           </div>
           <div>
-            <div className="font-black text-[color:var(--text-primary)] text-sm flex items-center gap-1.5">
+            <div className="font-black text-[var(--text-primary)] text-sm flex items-center gap-2">
               {getAssetDetail(asset.symbol).name}
-              <span className="text-[10px] bg-[color:var(--pill-bg)] text-[color:var(--text-muted)] px-1.5 py-0.5 rounded-md font-bold">{asset.symbol}</span>
+              <span className="text-[10px] bg-[var(--glass-border)] text-[var(--text-secondary)] px-1.5 py-0.5 rounded-md font-bold">{asset.symbol}</span>
             </div>
-            <div className={`text-[11px] ${mutedText} mt-1 font-bold flex items-center gap-1`} dir="ltr">
+            <div className={`text-[11px] text-[var(--text-secondary)] mt-1 font-bold flex items-center gap-1`} dir="ltr">
               <span>{formatNumber(asset.totalQuantity, 3)}</span>
               <span className="opacity-60">{asset.type === 'GOLD' ? 'گرم' : asset.symbol}</span>
             </div>
             {/* نمایش قیمت لحظه‌ای واحد */}
-            <div className="text-[10px] text-blue-600 mt-1 font-black flex flex-col gap-0.5 items-start">
+            <div className="text-[10px] text-blue-500 mt-1 font-black flex flex-col gap-0.5 items-start">
               <div className="flex items-center gap-1">
                 <span className="w-1 h-1 bg-blue-500 rounded-full animate-pulse"></span>
-                <span>قیمت واحد:</span>
                 <span dir="ltr">{formatToman(asset.currentPriceToman)} ت</span>
               </div>
               {asset.currentPriceUsd && (
@@ -71,12 +70,12 @@ const AssetRowComponent: React.FC<AssetRowProps> = ({ asset, transactions = [], 
         </div>
 
         <div className="text-left flex flex-col items-end">
-          <div className="font-black text-[color:var(--text-primary)] text-sm">{formatToman(asset.currentValueToman)} ت</div>
-          <div className={`text-[10px] flex items-center gap-1 mt-1.5 font-black px-2 py-1 rounded-lg ${isProfit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`} dir="ltr">
+          <div className="font-black text-[var(--text-primary)] text-sm">{formatToman(asset.currentValueToman)} ت</div>
+          <div className={`text-[10px] flex items-center gap-1 mt-1.5 font-black px-2 py-0.5 rounded-lg ${isProfit ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`} dir="ltr">
             {isProfit ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
             <span>{formatPercent(asset.pnlPercent)}</span>
           </div>
-          <div className={`text-[9px] ${mutedText} mt-1 font-bold flex items-center gap-1`} dir="ltr">
+          <div className={`text-[9px] text-[var(--text-secondary)] mt-1 font-bold flex items-center gap-1`} dir="ltr">
             <span className="opacity-70">سود/ضرر:</span> {formatToman(asset.pnlToman)} ت
             {isExpanded ? <ChevronUp size={12} className="ml-1" /> : <ChevronDown size={12} className="ml-1" />}
           </div>

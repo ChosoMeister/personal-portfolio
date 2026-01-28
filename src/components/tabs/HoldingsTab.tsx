@@ -32,14 +32,15 @@ const HoldingsTabComponent: React.FC<HoldingsTabProps> = ({
     );
 
     return (
-        <div className="animate-in fade-in duration-300 pb-20">
-            <div className="sticky top-0 bg-[color:var(--card-bg)]/80 backdrop-blur-md z-40 px-4 py-4 shadow-sm border-b border-[color:var(--border-color)]">
+        <div className="p-4 pb-20 animate-in fade-in duration-300">
+            {/* Search Input */}
+            <div className="sticky top-0 z-40 -mx-4 px-4 py-4 backdrop-blur-md bg-[var(--glass-surface)] border-b border-[var(--glass-border)]">
                 <input
                     type="text"
                     placeholder="جستجو..."
                     value={filters.searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)]"
+                    className="w-full bg-[var(--glass-border)]/50 rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[var(--glass-border)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:bg-[var(--glass-border)] transition-colors"
                 />
             </div>
             {filteredAssets.length === 0 ? (
@@ -51,7 +52,7 @@ const HoldingsTabComponent: React.FC<HoldingsTabProps> = ({
                     onAction={onAddTransaction}
                 />
             ) : (
-                <div>
+                <div className="pt-4">
                     {filteredAssets.map((asset) => (
                         <AssetRow
                             key={asset.symbol}
@@ -70,7 +71,7 @@ const HoldingsTabComponent: React.FC<HoldingsTabProps> = ({
             {filteredAssets.length > 0 && (
                 <button
                     onClick={onAddTransaction}
-                    className="fixed bottom-24 left-6 z-50 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
+                    className="glass-fab fixed bottom-32 left-6 z-50 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95"
                 >
                     <Plus size={28} strokeWidth={2.5} />
                 </button>

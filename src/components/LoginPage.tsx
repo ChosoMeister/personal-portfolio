@@ -2,13 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, User, ShieldCheck, UserPlus, LogIn, AlertCircle, Zap, HelpCircle, RefreshCcw } from 'lucide-react';
 import { API } from '../services/api';
-import { SESSION_USER_KEY } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
-interface LoginPageProps {
-  onLoginSuccess: (user: { username: string, isAdmin: boolean, displayName?: string }) => void;
-}
-
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+export const LoginPage: React.FC = () => {
+  const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
   const [username, setUsername] = useState('');
@@ -79,18 +76,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    
+
     setLoading(true);
     setError('');
     setNotice('');
-
-    const persistSessionUser = (sessionUser: { username: string, isAdmin: boolean, displayName?: string }) => {
-      localStorage.setItem(SESSION_USER_KEY, JSON.stringify({
-        username: sessionUser.username,
-        isAdmin: sessionUser.isAdmin,
-        displayName: sessionUser.displayName,
-      }));
-    };
 
     try {
       if (isForgot) {
@@ -106,13 +95,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       } else if (isRegister) {
         if (password.length < 4) throw new Error('رمز عبور باید حداقل ۴ کاراکتر باشد');
         if (!securityQuestion || !securityAnswer) throw new Error('سوال و پاسخ امنیتی را وارد کنید');
-        const user = await API.register(username, password, displayName || username, securityQuestion, securityAnswer);
-        persistSessionUser(user!);
-        onLoginSuccess(user!);
+        await register(username, password, displayName || username, securityQuestion, securityAnswer);
+        // AuthContext automatically updates user state
       } else {
-        const user = await API.login(username, password);
-        persistSessionUser(user);
-        onLoginSuccess(user);
+        await login(username, password);
+        // AuthContext automatically updates user state
       }
     } catch (err: any) {
       console.error("Login component error:", err);
@@ -124,20 +111,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleFastLogin = () => {
-    // ورود مستقیم با اکانت ادمین پیش‌فرض
-    const user = { username: 'admin', isAdmin: true, displayName: 'ادمین سیستم' };
-    localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user));
-    onLoginSuccess(user);
+  const handleFastLogin = async () => {
+    // ورود اضطراری با اکانت ادمین پیش‌فرض
+    try {
+      await login('admin', 'admin123');
+    } catch {
+      // Fallback for offline mode - set user directly in localStorage
+      localStorage.setItem('sessionUser', JSON.stringify({ username: 'admin', isAdmin: true, displayName: 'ادمین سیستم' }));
+      window.location.reload();
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-slate-950">
-      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 blur-[120px] rounded-full animate-pulse"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 blur-[120px] rounded-full"></div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-slate-900">
+      {/* Background Ambience */}
+      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/30 blur-[100px] rounded-full animate-pulse"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/30 blur-[100px] rounded-full"></div>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
 
       <div className="w-full max-w-[400px] p-6 relative z-10 animate-in fade-in zoom-in duration-500">
-        <div className="bg-white/10 backdrop-blur-2xl border border-white/10 rounded-[40px] p-8 shadow-2xl">
+        <div className="bg-slate-800/70 backdrop-blur-2xl border border-white/10 rounded-[40px] p-8 shadow-2xl">
           <div className="flex flex-col items-center mb-10">
             <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-600/40 mb-6 rotate-12 transition-transform hover:rotate-0 duration-500">
               <ShieldCheck size={40} className="text-white" />
@@ -348,9 +341,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
         </div>
-        
+
         <div className="mt-8 text-center">
-            <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Powered by AI Engine</p>
+          <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest">Powered by AI Engine</p>
         </div>
       </div>
     </div>
