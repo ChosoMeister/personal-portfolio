@@ -59,3 +59,5 @@
     - **Modern Bottom Nav**: Centered "Overview", added subtle blue glow for active state. Swapped "Holdings" and "Transactions" positions as requested. Reverted "Overview" icon size to standard (same as others) to prevent clipping.
     - **FAB Position**: Raised floating action button in Holdings tab to prevent overlap with bottom nav.
 - **Price Update Logic**: Fixed "Update" button to explicitly trigger `API.refreshLivePrices()` (bypassing cache) and implemented transient "Sources" text that appears only during/after update and clears on refresh.
+- **PWA Fixes**: Fixed iOS "White Screen" issue by updating `manifest.json` (`start_url: "/"`, `background_color: "#111827"`). This also ensures optimal rendering on Android.
+- **ETC Price Fallback**: Implemented automatic fallback to CoinGecko for Ethereum Classic (ETC) if the primary source returns 0 or fails.

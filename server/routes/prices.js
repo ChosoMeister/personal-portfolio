@@ -129,6 +129,13 @@ const fetchGoldBoard = async (usdRate) => {
     return prices;
 };
 
+const fetchCoinGeckoETC = async () => {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum-classic&vs_currencies=usd');
+    if (!res.ok) throw new Error('CoinGecko API Error');
+    const data = await res.json();
+    return data['ethereum-classic']?.usd;
+};
+
 // ... Backup fetchers omitted for brevity in this tool call, but should be included.
 // To save tokens/time, I will implement a simplified version of `fetchWithFallback` here or put placeholders
 // actually, I need the full logic to ensure it works.
@@ -200,6 +207,19 @@ router.get('/refresh', async (req, res) => {
         sources.push({ type: 'crypto', source: cryptoResult.source });
 
         const usdRate = fiatPrices.USD || pricesCache?.usdToToman || FALLBACK_PRICES.usdToToman;
+
+        // Fallback for ETC (Ethereum Classic) if missing or 0
+        if (!cryptoPrices['ETC'] && !cryptoPrices['ETHEREUM CLASSIC']) {
+            try {
+                const etcUsd = await fetchCoinGeckoETC();
+                if (etcUsd) {
+                    const etcToman = Math.round(etcUsd * usdRate);
+                    cryptoPrices['ETC'] = etcToman;
+                    console.log(`[Prices] Recovered ETC price from CoinGecko: $${etcUsd} -> ${etcToman} Toman`);
+                }
+            } catch (e) { console.error('Failed ETC fallback', e); }
+        }
+
         const goldResult = await fetchWithFallback(() => fetchGoldBoard(usdRate), [], 'gold');
         const goldPrices = goldResult.data;
         sources.push({ type: 'gold', source: goldResult.source });

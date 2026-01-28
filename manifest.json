@@ -15,9 +15,10 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#111827",
-  "background_color": "#ffffff",
+  "background_color": "#111827",
   "orientation": "portrait"
 }
