@@ -34,6 +34,7 @@ export interface AssetSummary {
   pnlToman: number;
   pnlPercent: number;
   allocationPercent: number;
+  currentPriceUsd?: number;
 }
 
 export interface PortfolioSummary {

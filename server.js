@@ -666,7 +666,7 @@ app.post('/api/login', authLimiter, async (req, res) => {
     // Validate input
     const validation = loginSchema.safeParse(req.body);
     if (!validation.success) {
-        return res.status(400).json({ message: validation.error.errors[0]?.message || 'داده‌های ورودی نامعتبر است' });
+        return res.status(400).json({ message: validation.error?.errors?.[0]?.message || 'داده‌های ورودی نامعتبر است' });
     }
 
     let { username, password } = validation.data;
@@ -745,7 +745,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
     // Validate input
     const validation = registerSchema.safeParse(req.body);
     if (!validation.success) {
-        return res.status(400).json({ message: validation.error.errors[0]?.message || 'داده‌های ورودی نامعتبر است' });
+        return res.status(400).json({ message: validation.error?.errors?.[0]?.message || 'داده‌های ورودی نامعتبر است' });
     }
 
     let { username, password, displayName, securityQuestion, securityAnswer } = validation.data;
@@ -783,7 +783,7 @@ app.post('/api/reset-password', authLimiter, async (req, res) => {
     // Validate input
     const validation = resetPasswordSchema.safeParse(req.body);
     if (!validation.success) {
-        return res.status(400).json({ message: validation.error.errors[0]?.message || 'داده‌های ورودی نامعتبر است' });
+        return res.status(400).json({ message: validation.error?.errors?.[0]?.message || 'داده‌های ورودی نامعتبر است' });
     }
 
     let { username, securityAnswer, newPassword } = validation.data;

@@ -238,6 +238,13 @@ export default function App() {
     let runningTotalCost = 0;
 
     const assets = Object.values(assetsMap).map(asset => {
+      // Calculate USD Price
+      if (prices.usdToToman > 0 && asset.currentPriceToman > 0) {
+        if (asset.type === 'CRYPTO' || asset.type === 'GOLD' || asset.type === 'FIAT') {
+          asset.currentPriceUsd = asset.currentPriceToman / prices.usdToToman;
+        }
+      }
+
       asset.currentValueToman = asset.totalQuantity * asset.currentPriceToman;
       asset.pnlToman = asset.currentValueToman - asset.costBasisToman;
       asset.pnlPercent = asset.costBasisToman > 0 ? (asset.pnlToman / asset.costBasisToman) * 100 : 0;
@@ -291,12 +298,16 @@ export default function App() {
         {tab === 'holdings' && (
           <HoldingsTab
             portfolioSummary={portfolioSummary}
+            transactions={transactions}
             filters={txFilters}
             onSearchChange={(query) => setTxFilters(f => ({ ...f, searchQuery: query }))}
             onAssetClick={(symbol) => {
               haptic('light');
-              setTab('transactions');
-              setTxFilters(f => ({ ...f, searchQuery: symbol }));
+              // setTab('transactions'); // REMOVED: Don't switch tab, just expand (handled in inner component)
+              // But wait, the original behavior was to switch to transactions tab.
+              // The user wants to see "P&L per purchase". I can do this IN PLACE in holdings tab.
+              // So I will keep onAssetClick but maybe it toggles expansion?
+              // For now, let's just pass transactions. 
             }}
             onAddTransaction={() => {
               setEditingTransaction(null);
@@ -311,7 +322,10 @@ export default function App() {
             transactions={transactions}
             filters={txFilters}
             onFiltersChange={setTxFilters}
-            onEditTransaction={setEditingTransaction}
+            onEditTransaction={(tx) => {
+              setEditingTransaction(tx);
+              setIsTxModalOpen(true);
+            }}
             onOpenSettings={() => setIsSettingsDrawerOpen(true)}
             onLogout={handleLogout}
             haptic={haptic}

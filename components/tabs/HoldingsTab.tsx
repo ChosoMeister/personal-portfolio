@@ -1,12 +1,14 @@
 
 import React, { memo } from 'react';
-import { PortfolioSummary } from '../../types';
+import { PortfolioSummary, Transaction } from '../../types';
 import { AssetRow } from '../AssetRow';
 import { EmptyState } from '../EmptyState';
 import { TransactionFilters } from '../TransactionFilter';
+import { Plus } from 'lucide-react';
 
 interface HoldingsTabProps {
     portfolioSummary: PortfolioSummary;
+    transactions: Transaction[];
     filters: TransactionFilters;
     onSearchChange: (query: string) => void;
     onAssetClick: (symbol: string) => void;
@@ -16,6 +18,7 @@ interface HoldingsTabProps {
 
 const HoldingsTabComponent: React.FC<HoldingsTabProps> = ({
     portfolioSummary,
+    transactions,
     filters,
     onSearchChange,
     onAssetClick,
@@ -53,6 +56,7 @@ const HoldingsTabComponent: React.FC<HoldingsTabProps> = ({
                         <AssetRow
                             key={asset.symbol}
                             asset={asset}
+                            transactions={transactions.filter(t => t.assetSymbol === asset.symbol)}
                             onClick={() => {
                                 haptic('light');
                                 onAssetClick(asset.symbol);
@@ -60,6 +64,16 @@ const HoldingsTabComponent: React.FC<HoldingsTabProps> = ({
                         />
                     ))}
                 </div>
+            )}
+
+            {/* Floating Action Button for adding transactions */}
+            {filteredAssets.length > 0 && (
+                <button
+                    onClick={onAddTransaction}
+                    className="fixed bottom-24 left-6 z-50 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center transition-transform active:scale-95"
+                >
+                    <Plus size={28} strokeWidth={2.5} />
+                </button>
             )}
         </div>
     );
