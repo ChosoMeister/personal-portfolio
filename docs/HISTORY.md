@@ -60,4 +60,5 @@
     - **FAB Position**: Raised floating action button in Holdings tab to prevent overlap with bottom nav.
 - **Price Update Logic**: Fixed "Update" button to explicitly trigger `API.refreshLivePrices()` (bypassing cache) and implemented transient "Sources" text that appears only during/after update and clears on refresh.
 - **PWA Fixes (Phase 2)**: Added `apple-touch-icon.png` and injected critical CSS (Background Color) into `index.html` to eliminate iOS white screen flash.
+- **UI Consistency**: Synced "Holdings" search bar style with "Transactions" to use the preferred "Rang" (Muted Surface) styling for better visual harmony.
 - **ETC Price Fallback**: Implemented automatic fallback to CoinGecko for Ethereum Classic (ETC) if the primary source returns 0 or fails.

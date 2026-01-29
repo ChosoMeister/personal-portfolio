@@ -40,7 +40,7 @@ const HoldingsTabComponent: React.FC<HoldingsTabProps> = ({
                     placeholder="جستجو..."
                     value={filters.searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    className="w-full bg-[var(--glass-border)]/50 rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[var(--glass-border)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:bg-[var(--glass-border)] transition-colors"
+                    className="w-full bg-[color:var(--muted-surface)] rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none border border-[color:var(--border-color)] text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)] focus:bg-[color:var(--muted-surface)]/80 transition-colors"
                 />
             </div>
             {filteredAssets.length === 0 ? (
